@@ -1,0 +1,159 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm[toml]>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0+unknown"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["open_telco*"]
+
+[tool.setuptools.package-data]
+"open_telco" = ["*.yaml", "*.json"]
+
+[tool.ruff]
+extend-exclude = ["docs"]
+src = ["src"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # flake8
+    "D",      # pydocstyle
+    "I",      # isort
+    "SIM101", # duplicate isinstance
+    "YTT",    # flake8-2020
+    "LOG",    # flake8-logging
+    "NPY",    # numpy-specific-rules-npy
+    "PLE",    # pylint error
+    "PLR",    # pylint refactor
+    "PLW",    # pylint warning
+    "UP006",  # Prevent List and Dict, use list and dict instead.
+    "UP007",  # Prevent Union[X, Y], use [X | Y] instead.
+    "UP045",  # Prevent Optional[X], use X | None instead.
+    "FURB",   # refurb
+    "TID252", # relative-imports
+]
+ignore = [
+    "E203",    # whitespace-before-punctuation
+    "E501",    # line-too-long
+    "D10",     # missing docstrings
+    "D212",    # docstring multi-line-summary-first-line
+    "D415",    # docstring missing-terminal-punctuation
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0913", # Too many arguments in function definition
+    "PLR0915", # Too many statements
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/{tests}/*" = ["PLR2004"]  # Allow magic numbers in tests
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-rA --doctest-modules --color=yes --durations=10"
+testpaths = ["tests"]
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+log_level = "WARNING"
+env_files = [".env"]
+markers = [
+    "slow: marks tests that are slow to run",
+]
+
+[tool.mypy]
+exclude = ["build"]
+warn_unused_ignores = true
+no_implicit_reexport = true
+strict_equality = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["open_telco.*"]
+warn_return_any = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+extra_checks = true
+disable_error_code = "unused-ignore"
+
+[[tool.mypy.overrides]]
+module = ["datasets", "datasets.*"]
+ignore_missing_imports = true
+
+[tool.check-wheel-contents]
+ignore = ["W002", "W009"]
+
+[project]
+name = "open_telco"
+description = "Open Telco Initiative Benchmarks"
+authors = [{ name = "Open Telco Initiative" }]
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "datasets>=4.0.0",
+    "inspect_ai>=0.3.153",
+    "numpy>=1.26.0",
+    "pydantic>=2.10.0",
+    "requests>=2.32.0",
+    "toml>=0.10.2",
+    "jinja2",
+    "python-dotenv",
+]
+
+[project.urls]
+"Source Code" = "https://github.com/Open-Telco/open_telco"
+"Issue Tracker" = "https://github.com/Open-Telco/open_telco/issues"
+
+[project.entry-points.inspect_ai]
+open_telco = "open_telco._registry"
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "openai",
+    "pre-commit",
+    "pytest",
+    "pytest-mock",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-dotenv",
+    "pytest-xdist",
+    "pyyaml",
+    "ruff",
+    "types-PyYAML",
+    "types-requests",
+]
+
+[tool.uv]
+environments = [
+    "python_version >= '3.10' and python_version < '3.14'",
+]
