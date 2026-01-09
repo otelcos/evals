@@ -122,10 +122,10 @@ class SetModelsCategoryScreen(Screen[None]):
     ]
 
     MENU_ITEMS = (
-        ("Lab APIs", "lab_apis", False),
-        ("Cloud APIs (Coming soon)", "cloud_apis", True),
-        ("Open - Hosted (Coming soon)", "open_hosted", True),
-        ("Open - Local (Coming soon)", "open_local", True),
+        ("lab-apis", "lab_apis", False),
+        ("cloud-apis (coming-soon)", "cloud_apis", True),
+        ("open-hosted (coming-soon)", "open_hosted", True),
+        ("open-local (coming-soon)", "open_local", True),
     )
 
     def compose(self) -> ComposeResult:
@@ -148,7 +148,7 @@ class SetModelsCategoryScreen(Screen[None]):
     def action_select(self) -> None:
         label, action, disabled = self.query_one(Menu).get_selected()
         if disabled:
-            self.notify("Coming soon!", title="Info")
+            self.notify("coming-soon!", title="info")
             return
 
         if action == "lab_apis":

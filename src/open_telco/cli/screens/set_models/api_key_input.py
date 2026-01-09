@@ -85,16 +85,16 @@ class ApiKeyInputScreen(Screen[None]):
         env_key = self.provider_config["env_key"]
         has_existing = self.env_manager.has_key(env_key)
 
-        yield Static(f"Enter {self.provider_name} API Key", id="header")
+        yield Static(f"enter-{self.provider_name.lower()}-api-key", id="header")
         with Container(id="form-container"):
             with Vertical():
-                yield Static(f"Environment variable: {env_key}", classes="env-var")
+                yield Static(f"environment-variable: {env_key}", classes="env-var")
 
                 if has_existing:
-                    yield Static("(Key already set - will be overwritten)", classes="current-value")
+                    yield Static("(key-already-set - will-be-overwritten)", classes="current-value")
 
                 yield Input(
-                    placeholder="Enter your API key...",
+                    placeholder="enter-your-api-key...",
                     password=True,
                     id="api-key-input",
                 )
@@ -114,7 +114,7 @@ class ApiKeyInputScreen(Screen[None]):
         api_key = event.value.strip()
 
         if not api_key:
-            self.notify("API key cannot be empty", severity="error")
+            self.notify("api-key-cannot-be-empty", severity="error")
             return
 
         # Save API key to .env
@@ -122,13 +122,13 @@ class ApiKeyInputScreen(Screen[None]):
         success = self.env_manager.set(env_key, api_key)
 
         if success:
-            self.notify(f"Saved {env_key}", severity="information")
+            self.notify(f"saved-{env_key}", severity="information")
             # Navigate to model input screen
             from open_telco.cli.screens.set_models.model_input import ModelInputScreen
 
             self.app.push_screen(ModelInputScreen(self.provider_name))
         else:
-            self.notify("Failed to save API key", severity="error")
+            self.notify("failed-to-save-api-key", severity="error")
 
     def action_go_back(self) -> None:
         """Go back to provider selection."""

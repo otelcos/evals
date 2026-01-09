@@ -10,8 +10,6 @@ Tests covered:
 
 import time
 
-import pytest
-
 from open_telco.cli.app import OpenTelcoApp
 from open_telco.cli.screens.main_menu import MainMenuScreen
 from open_telco.cli.screens.set_models import SetModelsCategoryScreen
@@ -36,10 +34,10 @@ class TestCLIStartup:
 
 
 class TestStartupTiming:
-    """Test 2: Startup must be under 1 second."""
+    """Test 2: Startup must be under 0.1 seconds."""
 
-    async def test_startup_under_one_second(self) -> None:
-        """App startup should complete in under 1 second."""
+    async def test_startup_under_100ms(self) -> None:
+        """App startup should complete in under 0.1 seconds."""
         app = OpenTelcoApp()
 
         start_time = time.perf_counter()
@@ -47,7 +45,7 @@ class TestStartupTiming:
             await pilot.pause()
             elapsed = time.perf_counter() - start_time
 
-        assert elapsed < 1.0, f"Startup took {elapsed:.3f}s, expected < 1.0s"
+        assert elapsed < 0.1, f"Startup took {elapsed:.3f}s, expected < 0.1s"
 
 
 class TestNavigation:

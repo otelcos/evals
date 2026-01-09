@@ -146,11 +146,13 @@ class MainMenuScreen(Screen[None]):
 
             self.app.push_screen(SetModelsCategoryScreen())
         elif action == "run_evals":
-            self.notify("Run Evals - Coming soon!", title="Info")
+            from open_telco.cli.screens.run_evals import RunEvalsScreen
+
+            self.app.push_screen(RunEvalsScreen())
         elif action == "preview_leaderboard":
-            self.notify("Preview Leaderboard - Coming soon!", title="Info")
+            self.notify("preview-leaderboard - coming-soon!", title="info")
         elif action == "submit":
-            self.notify("Submit - Coming soon!", title="Info")
+            self.notify("submit - coming-soon!", title="info")
 
     def action_quit(self) -> None:
         """Quit the application."""

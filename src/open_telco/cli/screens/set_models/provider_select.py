@@ -122,7 +122,7 @@ class ProviderSelectScreen(Screen[None]):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Static("Select Provider", id="header")
+        yield Static("select-provider", id="header")
         menu_items = tuple((name, name) for name in PROVIDERS.keys())
         with Container(id="menu-container"):
             yield Menu(*menu_items)

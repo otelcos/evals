@@ -96,21 +96,21 @@ class ModelInputScreen(Screen[None]):
         example = self.provider_config["example_model"]
         current_model = self.env_manager.get("INSPECT_EVAL_MODEL")
 
-        yield Static("Enter Model Name", id="header")
+        yield Static("enter-model-name", id="header")
         with Container(id="form-container"):
             with Vertical():
-                yield Static(f"Provider: {self.provider_name}", classes="provider-info")
-                yield Static(f"Format: {prefix}/<model-name>", classes="info")
+                yield Static(f"provider: {self.provider_name}", classes="provider-info")
+                yield Static(f"format: {prefix}/<model-name>", classes="info")
 
                 if current_model:
-                    yield Static(f"Current: {current_model}", classes="current-value")
+                    yield Static(f"current: {current_model}", classes="current-value")
 
                 yield Input(
                     placeholder=example,
                     value=example,
                     id="model-input",
                 )
-                yield Static(f"Example: {example}", classes="example")
+                yield Static(f"example: {example}", classes="example")
         yield Static("", id="spacer")
         yield Static(
             "[#8b949e]↵[/] save [#30363d]·[/] [#8b949e]esc[/] cancel",
@@ -127,7 +127,7 @@ class ModelInputScreen(Screen[None]):
         model_name = event.value.strip()
 
         if not model_name:
-            self.notify("Model name cannot be empty", severity="error")
+            self.notify("model-name-cannot-be-empty", severity="error")
             return
 
         # Save model to .env
@@ -135,9 +135,9 @@ class ModelInputScreen(Screen[None]):
 
         if success:
             self.notify(
-                f"Model configured: {model_name}",
+                f"model-configured: {model_name}",
                 severity="information",
-                title="Success",
+                title="success",
             )
             # Return to main menu (pop all set-models screens)
             if self.from_api_key_screen:
@@ -152,7 +152,7 @@ class ModelInputScreen(Screen[None]):
                 self.app.pop_screen()  # Back to CategoryMenu
                 self.app.pop_screen()  # Back to MainMenu
         else:
-            self.notify("Failed to save model configuration", severity="error")
+            self.notify("failed-to-save-model-configuration", severity="error")
 
     def action_go_back(self) -> None:
         """Go back to API key input."""
