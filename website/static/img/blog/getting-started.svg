@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 200" fill="none">
+  <rect width="382" height="200" fill="#EEF2FF"/>
+  <!-- Terminal window -->
+  <rect x="50" y="30" width="282" height="140" rx="8" fill="#1F2937"/>
+  <!-- Terminal header -->
+  <rect x="50" y="30" width="282" height="28" rx="8" fill="#374151"/>
+  <circle cx="70" cy="44" r="6" fill="#EF4444"/>
+  <circle cx="90" cy="44" r="6" fill="#F59E0B"/>
+  <circle cx="110" cy="44" r="6" fill="#10B981"/>
+  <!-- Terminal content -->
+  <text x="70" y="80" font-family="monospace" font-size="12" fill="#10B981">$</text>
+  <text x="85" y="80" font-family="monospace" font-size="12" fill="#E5E7EB">pip install open-telco</text>
+  <text x="70" y="105" font-family="monospace" font-size="12" fill="#10B981">$</text>
+  <text x="85" y="105" font-family="monospace" font-size="12" fill="#E5E7EB">open-telco run teleqna</text>
+  <text x="70" y="130" font-family="monospace" font-size="12" fill="#6366F1">Running evaluation...</text>
+  <rect x="70" y="145" width="80" height="8" rx="2" fill="#6366F1"/>
+</svg>

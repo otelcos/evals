@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Open Telco',
   tagline: 'A collection of telco evals for the next generation of connectivity.',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   future: {
     v4: true,
@@ -41,42 +41,14 @@ const config: Config = {
         editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
       },
     ],
+    // Leaderboard now uses custom React page at src/pages/leaderboard.tsx
+    // Markdown docs moved to /leaderboard/details for reference
     [
       '@docusaurus/plugin-content-docs',
       {
         id: 'leaderboard',
         path: 'tabs/leaderboard/docs',
-        routeBasePath: 'leaderboard',
-        sidebarPath: false,
-        editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
-      },
-    ],
-    [
-      '@docusaurus/plugin-content-docs',
-      {
-        id: 'notebooks',
-        path: 'tabs/notebooks/docs',
-        routeBasePath: 'notebooks',
-        sidebarPath: false,
-        editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
-      },
-    ],
-    [
-      '@docusaurus/plugin-content-docs',
-      {
-        id: 'reference',
-        path: 'tabs/reference/docs',
-        routeBasePath: 'reference',
-        sidebarPath: false,
-        editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
-      },
-    ],
-    [
-      '@docusaurus/plugin-content-docs',
-      {
-        id: 'community',
-        path: 'tabs/community/docs',
-        routeBasePath: 'community',
+        routeBasePath: 'leaderboard/details',
         sidebarPath: false,
         editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
       },
@@ -91,6 +63,16 @@ const config: Config = {
         editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
       },
     ],
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'blog',
+        path: 'tabs/blog/docs',
+        routeBasePath: 'blog',
+        sidebarPath: false,
+        editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
+      },
+    ],
   ],
 
   presets: [
@@ -100,7 +82,7 @@ const config: Config = {
         docs: {
           path: 'tabs/user-guide/docs',
           sidebarPath: './sidebars.ts',
-          routeBasePath: '/',
+          routeBasePath: '/docs',
           editUrl: 'https://github.com/gsma-research/open_telco/tree/main/website/',
         },
         blog: false,
@@ -119,7 +101,12 @@ const config: Config = {
       respectPrefersColorScheme: false,
     },
     navbar: {
-      title: 'GSMA  Open Telco',
+      title: 'Open Telco',
+      logo: {
+        alt: 'GSMA Logo',
+        src: 'img/GSMA.jpeg',
+        height: 28,
+      },
       items: [
         {
           type: 'dropdown',
@@ -149,21 +136,11 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'docsSidebar',
           position: 'left',
-          label: 'User Guide',
+          label: 'Documentation',
         },
         {
-          to: '/reference',
-          label: 'Reference',
-          position: 'left',
-        },
-        {
-          to: '/notebooks/how-to-use',
-          label: 'Notebooks',
-          position: 'left',
-        },
-        {
-          to: '/community',
-          label: 'Community',
+          to: '/blog',
+          label: 'Blog',
           position: 'left',
         },
         {
@@ -181,11 +158,11 @@ const config: Config = {
           items: [
             {
               label: 'User Guide',
-              to: '/',
+              to: '/docs',
             },
             {
               label: 'Getting Started',
-              to: '/#getting-started',
+              to: '/docs/installation',
             },
           ],
         },

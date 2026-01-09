@@ -8,6 +8,10 @@ const sidebars: SidebarsConfig = {
       collapsed: false,
       items: [
         'welcome',
+        'installation',
+        'quickstart',
+        'benchmarks',
+        'faq',
         'contributing',
       ],
     },
