@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 200" fill="none">
+  <rect width="382" height="200" fill="#FEF2F2"/>
+  <!-- Rocket -->
+  <path d="M191 40 L221 100 L191 90 L161 100 Z" fill="#DC002B"/>
+  <ellipse cx="191" cy="115" rx="30" ry="15" fill="#DC002B"/>
+  <!-- Flames -->
+  <path d="M181 130 Q191 160 201 130 Q191 145 181 130" fill="#F59E0B"/>
+  <path d="M176 130 Q191 170 206 130 Q191 155 176 130" fill="#EF4444" opacity="0.7"/>
+  <!-- Stars -->
+  <circle cx="80" cy="50" r="3" fill="#DC002B"/>
+  <circle cx="300" cy="70" r="2" fill="#DC002B"/>
+  <circle cx="120" cy="150" r="2" fill="#DC002B"/>
+  <circle cx="280" cy="140" r="3" fill="#DC002B"/>
+  <!-- Title -->
+  <text x="191" y="185" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="700" fill="#DC002B">LAUNCH</text>
+</svg>

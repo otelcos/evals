@@ -1,0 +1,6 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Question/Answer icon for TeleQnA -->
+  <circle cx="12" cy="8" r="6" stroke="currentColor" stroke-width="2" fill="none"/>
+  <text x="12" y="11" text-anchor="middle" font-family="system-ui" font-size="8" font-weight="bold" fill="currentColor">?</text>
+  <path d="M12 14 L12 17 L10 20 M12 17 L14 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

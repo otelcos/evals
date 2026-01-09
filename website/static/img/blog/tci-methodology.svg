@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 200" fill="none">
+  <rect width="382" height="200" fill="#F0FDFA"/>
+  <!-- Chart background -->
+  <rect x="40" y="30" width="302" height="140" rx="8" fill="white" stroke="#E5E7EB"/>
+  <!-- Grid lines -->
+  <line x1="60" y1="140" x2="320" y2="140" stroke="#E5E7EB" stroke-width="1"/>
+  <line x1="60" y1="110" x2="320" y2="110" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="4"/>
+  <line x1="60" y1="80" x2="320" y2="80" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="4"/>
+  <line x1="60" y1="50" x2="320" y2="50" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="4"/>
+  <!-- Data points -->
+  <circle cx="80" cy="120" r="8" fill="#4DB6AC"/>
+  <circle cx="120" cy="95" r="10" fill="#F48FB1"/>
+  <circle cx="160" cy="70" r="12" fill="#B39DDB"/>
+  <circle cx="200" cy="85" r="9" fill="#81C784"/>
+  <circle cx="240" cy="60" r="11" fill="#FF8A65"/>
+  <circle cx="280" cy="75" r="10" fill="#5C6BC0"/>
+  <!-- Title -->
+  <text x="191" y="180" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="600" fill="#008080">TCI Methodology</text>
+</svg>

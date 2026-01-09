@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Bar 1 (shortest) -->
+  <rect x="3" y="22" width="5" height="7" fill="#5C0011"/>
+  <!-- Bar 2 -->
+  <rect x="10" y="16" width="5" height="13" fill="#A3001F"/>
+  <!-- Bar 3 -->
+  <rect x="17" y="10" width="5" height="19" fill="#C50027"/>
+  <!-- Bar 4 (tallest) -->
+  <rect x="24" y="4" width="5" height="25" fill="#DC002B"/>
+</svg>

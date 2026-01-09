@@ -1,12 +1,19 @@
 # Getting Started
 
-## Prerequisites
+Open Telco is a suite of telco-specific benchmarks for evaluating AI models on telecommunications tasks. Built on [Inspect AI](https://inspect.aisi.org.uk/), it provides standardized evaluations for knowledge, reasoning, and operational capabilities in the telecom domain.
 
-**Python 3.10-3.13**
+## Prerequisites Checklist
 
-This project requires Python 3.10, 3.11, 3.12, or 3.13. Python 3.14+ is not yet supported.
+Before you begin, ensure you have:
 
-**uv package manager**
+| Requirement | Details |
+|-------------|---------|
+| Python 3.10-3.13 | Python 3.14+ not yet supported |
+| uv package manager | Fast Python package installer |
+| HuggingFace account | For dataset access ([sign up](https://huggingface.co/join)) |
+| Model API key | At least one: OpenAI, Anthropic, or OpenRouter |
+
+### Install uv
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -14,20 +21,15 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ## Installation
 
-Clone the repository, pin a supported Python version, and install dependencies:
-
 ```bash
-git clone https://github.com/gsma/open_telco.git
+git clone https://github.com/gsma-research/open_telco.git
 cd open_telco
-uv python pin 3.11  # Pin to a supported version (3.10-3.13)
 uv sync
 ```
 
-If you already have a supported Python version as default, you can skip the `uv python pin` step.
-
 ## Configuration
 
-Create a `.env` file in the root folder:
+Create a `.env` file in the project root:
 
 ```bash
 # Required: HuggingFace token for dataset access
@@ -42,4 +44,45 @@ OPENROUTER_API_KEY=your_openrouter_key_here
 INSPECT_EVAL_MODEL=anthropic/claude-sonnet-4-20250514
 ```
 
-Full list of supported models: https://inspect.aisi.org.uk/models.html
+### Getting Your API Keys
+
+| Provider | Where to get it |
+|----------|-----------------|
+| HuggingFace | [Settings > Access Tokens](https://huggingface.co/settings/tokens) |
+| OpenAI | [API Keys](https://platform.openai.com/api-keys) |
+| Anthropic | [API Keys](https://console.anthropic.com/settings/keys) |
+| OpenRouter | [API Keys](https://openrouter.ai/keys) |
+
+Full list of supported models: [Inspect AI Models](https://inspect.aisi.org.uk/models.html)
+
+## Verify Your Setup
+
+Run a quick test with 5 samples:
+
+```bash
+uv run inspect eval src/open_telco/teleqna/teleqna.py --model openai/gpt-4o --limit 5
+```
+
+If successful, you'll see evaluation progress and results in your terminal.
+
+## Troubleshooting
+
+**"HF_TOKEN not set" or dataset access errors**
+- Ensure your `.env` file is in the project root (not a subdirectory)
+- Verify your HuggingFace token has read access
+- Run `source .env` or restart your terminal
+
+**"Model not found" errors**
+- Check that the model name matches the [Inspect AI format](https://inspect.aisi.org.uk/models.html)
+- Verify your API key is set for that provider
+
+**Python version issues**
+- Run `python --version` to check your version
+- Use `uv python pin 3.12` to set a specific version
+
+## Next Steps
+
+- [Quickstart Guide](quickstart.md) - Run your first full evaluation
+- [List of Evaluations](eval-list.md) - Explore available benchmarks
+- [Running Evaluations](running-evaluations.md) - Advanced usage and options
+- [FAQ](faq.md) - Common questions answered

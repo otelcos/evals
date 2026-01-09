@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 200" fill="none">
+  <rect width="382" height="200" fill="#FEF2F2"/>
+  <rect x="40" y="40" width="302" height="120" rx="12" fill="white" stroke="#DC002B" stroke-width="2"/>
+  <text x="191" y="80" text-anchor="middle" font-family="system-ui" font-size="24" font-weight="700" fill="#DC002B">TeleQnA</text>
+  <text x="191" y="105" text-anchor="middle" font-family="system-ui" font-size="14" fill="#6B7280">v2.0</text>
+  <rect x="131" y="120" width="120" height="24" rx="4" fill="#DC002B"/>
+  <text x="191" y="137" text-anchor="middle" font-family="system-ui" font-size="12" font-weight="500" fill="white">NEW RELEASE</text>
+</svg>

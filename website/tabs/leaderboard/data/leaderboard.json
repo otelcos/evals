@@ -1,0 +1,62 @@
+[
+  {
+    "rank": 1,
+    "model": "gpt-5.2",
+    "provider": "OpenAI",
+    "repo": "",
+    "mean": 62.9,
+    "teleqna": 83.6,
+    "teleqna_stderr": 1.17,
+    "telelogs": 75,
+    "telelogs_stderr": 4.35,
+    "telemath": 39,
+    "telemath_stderr": 4.9,
+    "tsg": 54,
+    "tsg_stderr": 5.01
+  },
+  {
+    "rank": 2,
+    "model": "claude-opus-4.5",
+    "provider": "Anthropic",
+    "repo": "",
+    "mean": 59.9,
+    "teleqna": 84.6,
+    "teleqna_stderr": 1.14,
+    "telelogs": 57,
+    "telelogs_stderr": 4.98,
+    "telemath": 35,
+    "telemath_stderr": 4.79,
+    "tsg": 63,
+    "tsg_stderr": 4.85
+  },
+  {
+    "rank": 3,
+    "model": "gemini-3-flash-preview",
+    "provider": "Google",
+    "repo": "",
+    "mean": 59.65,
+    "teleqna": 83.6,
+    "teleqna_stderr": 1.17,
+    "telelogs": 53,
+    "telelogs_stderr": 5.02,
+    "telemath": 38,
+    "telemath_stderr": 4.88,
+    "tsg": 64,
+    "tsg_stderr": 4.82
+  },
+  {
+    "rank": 4,
+    "model": "deepseek-v3.2",
+    "provider": "DeepSeek",
+    "repo": "",
+    "mean": 55.53,
+    "teleqna": 80.1,
+    "teleqna_stderr": 1.26,
+    "telelogs": 53,
+    "telelogs_stderr": 5.02,
+    "telemath": 34,
+    "telemath_stderr": 4.76,
+    "tsg": 55,
+    "tsg_stderr": 5
+  }
+]

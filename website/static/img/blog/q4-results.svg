@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 382 200" fill="none">
+  <rect width="382" height="200" fill="#F5F3FF"/>
+  <!-- Bars -->
+  <rect x="60" y="100" width="50" height="70" rx="4" fill="#B39DDB"/>
+  <rect x="130" y="80" width="50" height="90" rx="4" fill="#4DB6AC"/>
+  <rect x="200" y="60" width="50" height="110" rx="4" fill="#F48FB1"/>
+  <rect x="270" y="50" width="50" height="120" rx="4" fill="#DC002B"/>
+  <!-- Labels -->
+  <text x="85" y="185" text-anchor="middle" font-family="monospace" font-size="10" fill="#6B7280">Q1</text>
+  <text x="155" y="185" text-anchor="middle" font-family="monospace" font-size="10" fill="#6B7280">Q2</text>
+  <text x="225" y="185" text-anchor="middle" font-family="monospace" font-size="10" fill="#6B7280">Q3</text>
+  <text x="295" y="185" text-anchor="middle" font-family="monospace" font-size="10" fill="#6B7280">Q4</text>
+  <!-- Title -->
+  <text x="191" y="30" text-anchor="middle" font-family="system-ui" font-size="14" font-weight="600" fill="#1A1A1A">2025 Benchmark Results</text>
+</svg>

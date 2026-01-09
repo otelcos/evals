@@ -1,0 +1,570 @@
+/* Open Telco Landing Page Styles */
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+
+.hero {
+  padding: 6rem 2rem;
+  text-align: center;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.heroContent {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.heroTitle {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #1a1a1a;
+  margin: 0 0 1.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.heroSubtitle {
+  font-size: 1.25rem;
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0 0 2.5rem 0;
+}
+
+.heroCtas {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ============================================
+   CTA BUTTONS
+   ============================================ */
+
+.ctaPrimary {
+  background-color: #E60000;
+  color: white;
+  padding: 0.875rem 2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  display: inline-block;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.ctaPrimary:hover {
+  background-color: #cf0000;
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.ctaSecondary {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  color: #1a1a1a;
+  padding: 0.875rem 2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s;
+}
+
+.ctaSecondary:hover {
+  border-color: #E60000;
+  color: #E60000;
+  text-decoration: none;
+}
+
+/* ============================================
+   STATS SECTION
+   ============================================ */
+
+.stats {
+  padding: 4rem 2rem;
+  background: #ffffff;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  max-width: 900px;
+  margin: 0 auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.statItem {
+  padding: 2rem 1rem;
+  text-align: center;
+  border-right: 1px solid #e5e7eb;
+  background: #ffffff;
+  transition: background-color 0.2s;
+}
+
+.statItem:last-child {
+  border-right: none;
+}
+
+.statItem:hover {
+  background-color: #fafafa;
+}
+
+.statLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.statLink:hover {
+  text-decoration: none;
+}
+
+.statNumber {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #E60000;
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+/* ============================================
+   SECTION COMMON STYLES
+   ============================================ */
+
+.sectionContainer {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.sectionTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 1rem 0;
+}
+
+.sectionSubtitle {
+  font-size: 1.125rem;
+  color: #6b7280;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ============================================
+   TCI PREVIEW SECTION
+   ============================================ */
+
+.tciPreview {
+  padding: 5rem 2rem;
+  background: #f8f9fa;
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tciContent {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.tciTable {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 60px 1fr 120px 100px;
+  padding: 1rem 1.5rem;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 60px 1fr 120px 100px;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  align-items: center;
+  transition: background-color 0.15s;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.tableRow:hover {
+  background-color: #fafafa;
+}
+
+.tableLoading {
+  padding: 3rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.rank {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.model {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.provider {
+  color: #6b7280;
+  font-size: 0.9375rem;
+}
+
+.tciScore {
+  font-weight: 700;
+  color: #008080;
+  font-size: 1.125rem;
+  text-align: right;
+}
+
+.tciCta {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+/* ============================================
+   BENCHMARKS SECTION
+   ============================================ */
+
+.benchmarks {
+  padding: 5rem 2rem;
+  background: #ffffff;
+}
+
+.benchmarkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.benchmarkCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.benchmarkCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.benchmarkHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.benchmarkTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.difficultyBadge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: white;
+}
+
+.benchmarkDesc {
+  font-size: 0.9375rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 1rem 0;
+}
+
+.benchmarkMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.sampleCount {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.benchmarkLinks {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.benchmarkLinks a {
+  font-size: 0.8125rem;
+  color: #008080;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.benchmarkLinks a:hover {
+  text-decoration: underline;
+}
+
+.benchmarksCta {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+/* ============================================
+   COLLABORATORS SECTION
+   ============================================ */
+
+.collaborators {
+  padding: 5rem 2rem;
+  background: #f8f9fa;
+  border-top: 1px solid #e5e7eb;
+}
+
+.collaboratorGroups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.collaboratorGroup {
+  text-align: center;
+}
+
+.groupTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 1rem 0;
+}
+
+.collaboratorList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.collaboratorName {
+  font-size: 0.875rem;
+  color: #374151;
+  background: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.collaboratorsCta {
+  text-align: center;
+}
+
+/* ============================================
+   GET STARTED SECTION
+   ============================================ */
+
+.getStarted {
+  padding: 5rem 2rem;
+  background: linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: white;
+}
+
+.getStartedContent {
+  max-width: 700px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.getStartedTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  color: white;
+}
+
+.getStartedText {
+  font-size: 1.125rem;
+  color: #9ca3af;
+  margin: 0 0 2rem 0;
+  line-height: 1.6;
+}
+
+.codeBlock {
+  background: #0d0d0d;
+  border-radius: 8px;
+  padding: 1.5rem;
+  text-align: left;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+}
+
+.codeBlock code {
+  font-family: 'SF Mono', Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 0.875rem;
+  color: #e5e7eb;
+  line-height: 1.7;
+  white-space: pre;
+}
+
+.comment {
+  color: #6b7280;
+}
+
+.getStartedCtas {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.getStartedCtas .ctaSecondary {
+  background: transparent;
+  border-color: #4b5563;
+  color: white;
+}
+
+.getStartedCtas .ctaSecondary:hover {
+  border-color: white;
+  color: white;
+}
+
+/* ============================================
+   RESPONSIVE STYLES
+   ============================================ */
+
+@media (max-width: 996px) {
+  .heroTitle {
+    font-size: 2.5rem;
+  }
+
+  .collaboratorGroups {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 4rem 1.5rem;
+  }
+
+  .heroTitle {
+    font-size: 2rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.125rem;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .statItem:nth-child(2) {
+    border-right: none;
+  }
+
+  .statItem:nth-child(1),
+  .statItem:nth-child(2) {
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .statNumber {
+    font-size: 2rem;
+  }
+
+  .tableHeader,
+  .tableRow {
+    grid-template-columns: 50px 1fr 90px;
+    font-size: 0.875rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .tableHeader span:nth-child(3),
+  .tableRow .provider {
+    display: none;
+  }
+
+  .benchmarkGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .getStartedTitle {
+    font-size: 1.75rem;
+  }
+
+  .heroCtas,
+  .getStartedCtas {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .ctaPrimary,
+  .ctaSecondary {
+    width: 100%;
+    max-width: 280px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .heroTitle {
+    font-size: 1.75rem;
+  }
+
+  .statNumber {
+    font-size: 1.75rem;
+  }
+
+  .statLabel {
+    font-size: 0.75rem;
+  }
+}
