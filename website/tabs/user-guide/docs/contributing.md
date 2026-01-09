@@ -2,76 +2,115 @@
 id: contributing
 title: Contributing
 sidebar_label: Contributing
-sidebar_position: 2
+sidebar_position: 6
 ---
 
 # Contributing to Open Telco
 
 We welcome contributions from the community! Open Telco is an open-source project and we appreciate all forms of contributions.
 
-## How to Contribute
+## Ways to Contribute
 
-### Reporting Issues
+<div className="contrib-grid">
+  <div className="contrib-card">
+    <div className="contrib-icon">🐛</div>
+    <h3>Report Issues</h3>
+    <p>Found a bug? Open an issue on <a href="https://github.com/gsma-research/open_telco/issues">GitHub</a>.</p>
+  </div>
+  <div className="contrib-card">
+    <div className="contrib-icon">💡</div>
+    <h3>Request Features</h3>
+    <p>Have an idea? Share it in GitHub Issues or Discussions.</p>
+  </div>
+  <div className="contrib-card">
+    <div className="contrib-icon">📝</div>
+    <h3>Improve Docs</h3>
+    <p>Fix typos, add examples, or write tutorials.</p>
+  </div>
+  <div className="contrib-card">
+    <div className="contrib-icon">🔬</div>
+    <h3>Add Benchmarks</h3>
+    <p>Contribute new telecom-specific evaluations.</p>
+  </div>
+</div>
 
-If you find a bug or have a feature request, please open an issue on our [GitHub repository](https://github.com/gsma-research/open_telco/issues).
+## Code Contributions
 
-### Code Contributions
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests and linting
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-### Development Setup
+### Quick Start
 
 ```bash
-# Clone your fork
+# 1. Fork and clone
 git clone https://github.com/YOUR_USERNAME/open_telco.git
 cd open_telco
 
-# Install dependencies
+# 2. Install dependencies
 pip install uv
 uv sync --all-extras
 
-# Install pre-commit hooks
+# 3. Install pre-commit hooks
 pre-commit install
 
-# Run tests
+# 4. Create a branch
+git checkout -b feature/your-feature
+
+# 5. Make changes and test
 uv run pytest
+
+# 6. Submit PR
+git push origin feature/your-feature
 ```
 
 ### Code Style
 
-We use the following tools to maintain code quality:
+We use these tools for code quality:
 
-- **Ruff** for linting and formatting
-- **MyPy** for type checking
-- **Pre-commit** hooks for automated checks
+| Tool | Purpose |
+|------|---------|
+| **Ruff** | Linting and formatting |
+| **MyPy** | Type checking |
+| **Pre-commit** | Automated checks before commit |
+
+Pre-commit hooks run automatically. To run manually:
+
+```bash
+pre-commit run --all-files
+```
 
 ## Adding New Evaluations
 
-If you want to contribute a new evaluation benchmark:
+Want to contribute a new benchmark? Follow these steps:
 
-1. Review the existing evaluation implementations in `src/open_telco/`
-2. Follow the Inspect AI framework patterns
-3. Include comprehensive documentation
-4. Add appropriate tests
-5. Update the registry in `_registry.py`
+1. **Review existing implementations** in `src/open_telco/`
+2. **Follow Inspect AI patterns** - see [their docs](https://inspect.aisi.org.uk/)
+3. **Include documentation** - README, docstrings, usage examples
+4. **Add tests** - ensure your eval works correctly
+5. **Update the registry** in `_registry.py`
+
+### Evaluation Requirements
+
+Your benchmark should:
+
+- Target telecommunications-specific skills
+- Have clear scoring criteria
+- Be reproducible
+- Include a dataset (or link to one)
 
 ## Documentation
 
-Documentation improvements are always welcome! You can:
+We welcome doc improvements:
 
-- Fix typos or clarify existing content
-- Add new tutorials or guides
+- Fix typos or unclear content
+- Add tutorials or guides
 - Improve code examples
+- Translate content
+
+Edit docs in `website/tabs/user-guide/docs/` and submit a PR.
 
 ## Community
 
-Join our community discussions on GitHub Discussions or reach out via the GSMA channels.
+- **GitHub Discussions:** Ask questions, share ideas
+- **GitHub Issues:** Report bugs, request features
+- **Email:** [emolero@gsma.com](mailto:emolero@gsma.com)
 
 ## License
 

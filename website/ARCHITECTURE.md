@@ -21,7 +21,7 @@ This document provides comprehensive documentation for the Open Telco website, i
 The Open Telco website is a documentation and research portal for telecommunications LLM benchmarking. It features:
 
 - **Research Dashboard**: Interactive visualizations of the Telco Capability Index (TCI)
-- **Benchmarks Directory**: Catalog of 5 telecommunications-specific evaluations
+- **Benchmarks Directory**: Catalog of 4 telecommunications-specific evaluations
 - **Models Explorer**: Searchable/filterable list of evaluated LLMs
 - **Leaderboard**: Rankings based on benchmark performance
 - **User Guide**: Documentation for running evaluations
@@ -67,7 +67,7 @@ website/
 │   │
 │   ├── leaderboard/        # Leaderboard tab
 │   │   ├── data/
-│   │   │   └── telecom-llm-leaderboard.csv  # Single source of truth
+│   │   │   └── leaderboard.json  # Single source of truth
 │   │   └── docs/
 │   │       └── leaderboard.md  # Full leaderboard table
 │   │
@@ -146,18 +146,19 @@ website/
 │                              DATA LAYER                                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   tabs/leaderboard/data/telecom-llm-leaderboard.csv                         │
+│   tabs/leaderboard/data/leaderboard.json                                    │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │ rank,provider,model,repo,mean,teleqna,telelogs,telemath,tsg,teleyaml│   │
-│   │ 1,OpenAI,GPT-5,...,89.2,92.5 (raw),78.3 (raw),85.1 (raw),91.0,...   │   │
-│   │ 2,Anthropic,Claude-Sonnet-4.5,...,87.8,...                          │   │
-│   │ ...                                                                  │   │
+│   │ [                                                                    │   │
+│   │   { "rank": 1, "model": "gpt-5.2", "provider": "OpenAI",            │   │
+│   │     "teleqna": 83.6, "telelogs": 75.0, "telemath": 39.0, "tsg": 54 }│   │
+│   │   ...                                                                │   │
+│   │ ]                                                                    │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
 │   Data Flow:                                                                 │
-│   1. CSV file served from /open_telco/leaderboard/data/                     │
-│   2. React components fetch CSV on mount                                     │
-│   3. parseCSV() extracts fields, handles quoted values                      │
+│   1. JSON file served from /open_telco/data/leaderboard.json                │
+│   2. React components fetch JSON on mount                                    │
+│   3. parseJSON() maps fields to LeaderboardEntry type                       │
 │   4. calculateTCI() computes capability index using IRT methodology         │
 │   5. Components render filtered/sorted data                                  │
 │                                                                              │
@@ -310,21 +311,19 @@ Navbar:
 
 ## Data Flow
 
-### CSV Loading
+### JSON Loading
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────────────────────┐
-│   Component  │────▶│    fetch()   │────▶│  /leaderboard/data/*.csv     │
+│   Component  │────▶│    fetch()   │────▶│  /data/leaderboard.json      │
 │    Mount     │     │              │     │                               │
 └──────────────┘     └──────────────┘     └──────────────────────────────┘
                             │
                             ▼
                      ┌──────────────┐
-                     │  parseCSV()  │
-                     │  - Split by  │
-                     │    newlines  │
-                     │  - Handle    │
-                     │    quotes    │
+                     │ parseJSON()  │
+                     │  - Map to    │
+                     │    type      │
                      │  - Extract   │
                      │    scores    │
                      └──────────────┘
@@ -350,13 +349,26 @@ Navbar:
 
 ### Data File Format
 
-`tabs/leaderboard/data/telecom-llm-leaderboard.csv`:
-```csv
-rank,provider,model,repo,mean,teleqna,telelogs,telemath,tsg,teleyaml
-1,OpenAI,GPT-5,openai/gpt-5,89.2,92.5 (raw),78.3 (raw),85.1 (raw),91.0,—
+`tabs/leaderboard/data/leaderboard.json`:
+```json
+[
+  {
+    "rank": 1,
+    "model": "gpt-5.2",
+    "provider": "OpenAI",
+    "repo": "openrouter/openai/gpt-5.2",
+    "mean": 62.9,
+    "teleqna": 83.6,
+    "teleqna_stderr": 1.17,
+    "telelogs": 75.0,
+    "telelogs_stderr": 4.35,
+    "telemath": 39.0,
+    "telemath_stderr": 4.9,
+    "tsg": 54.0,
+    "tsg_stderr": 5.01
+  }
+]
 ```
-
-Score format: `XX.XX (raw)` or `—` for missing values.
 
 ---
 
@@ -523,7 +535,7 @@ plugins: [
 
 | Issue | Solution |
 |-------|----------|
-| CSV not loading | Check path `/open_telco/leaderboard/data/...` |
+| JSON not loading | Check path `/open_telco/data/leaderboard.json` |
 | Chart not rendering | Verify Recharts imported |
 | Styles not applying | Check CSS class names |
 | Build fails on LaTeX | Use code blocks instead of math |

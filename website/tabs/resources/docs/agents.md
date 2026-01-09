@@ -147,7 +147,7 @@ We evaluate agents on:
 
 We welcome contributions of new agents:
 
-1. Follow the [contribution guidelines](/contributing)
+1. Follow the [contribution guidelines](/docs/contributing)
 2. Include comprehensive documentation
 3. Provide evaluation benchmarks
 4. Ensure safety considerations are addressed

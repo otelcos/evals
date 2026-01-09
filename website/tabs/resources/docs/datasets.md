@@ -130,7 +130,7 @@ echo "HF_TOKEN=your_token_here" >> .env
 
 We welcome contributions to expand our datasets:
 
-1. Review our [contribution guidelines](/contributing)
+1. Review our [contribution guidelines](/docs/contributing)
 2. Ensure data quality meets our standards
 3. Submit via pull request with documentation
 4. Include licensing information
