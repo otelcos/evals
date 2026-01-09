@@ -127,6 +127,7 @@ dependencies = [
     "toml>=0.10.2",
     "jinja2",
     "python-dotenv",
+    "textual>=0.89.0",
 ]
 
 [project.urls]
@@ -135,6 +136,9 @@ dependencies = [
 
 [project.entry-points.inspect_ai]
 open_telco = "open_telco._registry"
+
+[project.scripts]
+open-telco = "open_telco.cli:main"
 
 [dependency-groups]
 dev = [
