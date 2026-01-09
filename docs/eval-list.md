@@ -1,8 +1,26 @@
-# List of Evals
+# List of Evaluations
+
+This page lists all available benchmarks in Open Telco. Each benchmark tests different aspects of AI capabilities in telecommunications.
+
+## Quick Reference
+
+| Benchmark | Category | Difficulty | Best For |
+|-----------|----------|------------|----------|
+| [TeleQnA](#teleqna) | Knowledge | Easy | First evaluation, baseline testing |
+| [TeleMath](#telemath) | Math Reasoning | Hard | Mathematical/analytical tasks |
+| [TeleLogs](#telelogs) | Operations | Medium | Network diagnostics use cases |
+| [3GPP TSG](#3gpp-tsg) | Standards | Medium | Standards document work |
+| TeleYAML | Configuration | Hard | Network automation (coming soon) |
+
+**Recommended starting point**: TeleQnA - fastest to run and provides good baseline metrics.
+
+---
 
 ## Knowledge & QA
 
-**[TeleQnA](../src/open_telco/teleqna/): Benchmark Dataset to Assess Large Language Models for Telecommunications**
+### TeleQnA
+
+**[TeleQnA](../src/open_telco/teleqna/)**: Benchmark Dataset to Assess Large Language Models for Telecommunications
 
 A benchmark dataset of 10,000 question-answer pairs sourced from telecommunications standards and research articles. Evaluates LLMs' knowledge across general telecom inquiries and complex standards-related questions.
 
@@ -14,7 +32,9 @@ uv run inspect eval src/open_telco/teleqna/teleqna.py --model <model>
 
 ## Mathematical Reasoning
 
-**[TeleMath](../src/open_telco/telemath/): Evaluating Mathematical Reasoning in Telecom Domain**
+### TeleMath
+
+**[TeleMath](../src/open_telco/telemath/)**: Evaluating Mathematical Reasoning in Telecom Domain
 
 500 mathematically intensive problems covering signal processing, network optimization, and performance analysis. Implemented as a ReAct agent using bash and python tools to solve domain-specific mathematical computations.
 
@@ -26,7 +46,9 @@ uv run inspect eval src/open_telco/telemath/telemath.py --model <model>
 
 ## Network Operations & Diagnostics
 
-**[TeleLogs](../src/open_telco/telelogs/): Root Cause Analysis in 5G Networks**
+### TeleLogs
+
+**[TeleLogs](../src/open_telco/telelogs/)**: Root Cause Analysis in 5G Networks
 
 A synthetic dataset for root cause analysis (RCA) in 5G networks. Given network configuration parameters and user-plane data (throughput, RSRP, SINR), models must identify which of 8 predefined root causes explain throughput degradation below 600 Mbps.
 
@@ -46,7 +68,9 @@ Evaluates the capability of LLMs to generate standard-compliant YAML configurati
 
 ## Standardization
 
-**[3GPP TSG](../src/open_telco/three_gpp/): Technical Specification Group Classification**
+### 3GPP TSG
+
+**[3GPP TSG](../src/open_telco/three_gpp/)**: Technical Specification Group Classification
 
 Classifies 3GPP technical documents according to their working group. Models must identify the correct group for a given technical text.
 

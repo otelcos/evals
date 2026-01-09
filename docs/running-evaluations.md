@@ -1,5 +1,23 @@
 # Running Evaluations
 
+This guide covers how to run Open Telco benchmarks, from single evaluations to full benchmark suites across multiple models.
+
+## Quick First Run
+
+New to Open Telco? Start here:
+
+```bash
+# Run TeleQnA with 20 samples (takes ~2-3 minutes)
+uv run inspect eval src/open_telco/teleqna/teleqna.py --model openai/gpt-4o --limit 20
+
+# View results in browser
+uv run inspect view
+```
+
+For more setup details, see the [Quickstart Guide](quickstart.md).
+
+---
+
 ## Single Evaluation
 
 Run individual evaluations using the `inspect eval` command. See the [full list of available evaluations](eval-list.md).
