@@ -1,187 +1,24 @@
-import React, { useMemo, useState, useEffect } from 'react';
-
-// Organization colors matching the Epoch AI style
-const COLORS: Record<string, string> = {
-  'Google': '#4DB6AC',
-  'OpenAI': '#F48FB1',
-  'Meta': '#FFAB91',
-  'Anthropic': '#B39DDB',
-  'Claude': '#B39DDB',
-  'Grok': '#5C6BC0',
-  'Qwen': '#81C784',
-  'Mistral': '#FF8A65',
-  'NetoAI': '#4DD0E1',
-  'IBM': '#64B5F6',
-  'IBM Granite': '#64B5F6',
-  'DeepSeek': '#CE93D8',
-  'LiquidAI': '#FFB74D',
-  'Microsoft': '#4FC3F7',
-  'Swiss AI': '#E57373',
-  'ByteDance': '#AED581',
-  'Other': '#A1887F',
-};
-
-interface LeaderboardEntry {
-  rank: number;
-  provider: string;
-  model: string;
-  repo: string;
-  mean: number | null;
-  teleqna: number | null;
-  telelogs: number | null;
-  telemath: number | null;
-  tsg: number | null;
-  teleyaml: number | null;
-  tci: number | null;
-}
-
-// Parse CSV data
-function parseCSV(csvText: string): LeaderboardEntry[] {
-  const lines = csvText.trim().split('\n');
-  const entries: LeaderboardEntry[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    const values: string[] = [];
-    let current = '';
-    let inQuotes = false;
-
-    for (let j = 0; j < line.length; j++) {
-      const char = line[j];
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        values.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    values.push(current.trim());
-
-    const extractScore = (val: string): number | null => {
-      if (!val || val === '—' || val === '-') return null;
-      const match = val.match(/^([\d.]+)/);
-      return match ? parseFloat(match[1]) : null;
-    };
-
-    const rank = parseInt(values[0], 10);
-    if (isNaN(rank)) continue;
-
-    const entry: LeaderboardEntry = {
-      rank,
-      provider: values[1] || '',
-      model: values[2] || '',
-      repo: values[3] || '',
-      mean: values[4] === '—' ? null : parseFloat(values[4]),
-      teleqna: extractScore(values[5]),
-      telelogs: extractScore(values[6]),
-      telemath: extractScore(values[7]),
-      tsg: extractScore(values[8]),
-      teleyaml: extractScore(values[9]),
-      tci: null,
-    };
-
-    // Calculate TCI
-    entry.tci = calculateTCI(entry);
-    entries.push(entry);
-  }
-
-  return entries;
-}
-
-// Calculate TCI score
-function calculateTCI(entry: LeaderboardEntry): number | null {
-  const { teleqna, telelogs, telemath, tsg } = entry;
-  const scores = [teleqna, telelogs, telemath, tsg].filter(s => s !== null) as number[];
-  if (scores.length < 3) return null;
-
-  const benchmarkDifficulty: Record<string, number> = {
-    teleqna: 0.7,
-    telelogs: 0.3,
-    telemath: 0.4,
-    tsg: 0.4,
-  };
-
-  const benchmarkSlope: Record<string, number> = {
-    teleqna: 1.2,
-    telelogs: 1.5,
-    telemath: 1.3,
-    tsg: 1.2,
-  };
-
-  const benchmarks = [
-    { key: 'teleqna', value: teleqna },
-    { key: 'telelogs', value: telelogs },
-    { key: 'telemath', value: telemath },
-    { key: 'tsg', value: tsg },
-  ];
-
-  let totalWeight = 0;
-  let weightedCapability = 0;
-
-  benchmarks.forEach(({ key, value }) => {
-    if (value === null) return;
-    const score = value / 100;
-    const difficulty = 1 - benchmarkDifficulty[key];
-    const slope = benchmarkSlope[key];
-    const adjustedScore = Math.max(0.01, Math.min(0.99, score));
-    const logitScore = Math.log(adjustedScore / (1 - adjustedScore));
-    const weight = difficulty * slope;
-    weightedCapability += (logitScore + difficulty * 2) * weight;
-    totalWeight += weight;
-  });
-
-  const rawCapability = weightedCapability / totalWeight;
-  const tci = 115 + rawCapability * 20;
-  return Math.round(tci * 10) / 10;
-}
-
-// Get TCI color based on score
-function getTCIColor(tci: number | null): string {
-  if (tci === null) return '#999';
-  if (tci >= 135) return '#4DB6AC'; // High - teal
-  if (tci >= 125) return '#81C784'; // Good - green
-  if (tci >= 115) return '#FFB74D'; // Medium - amber
-  return '#FFAB91'; // Lower - coral
-}
+import React, { useMemo, useState } from 'react';
+import { useLeaderboardData } from '../../../src/hooks/useLeaderboardData';
+import { withTCI } from '../../../src/utils/calculateTCI';
+import { getTCIColor } from '../../../src/constants/benchmarks';
+import ProviderIcon from '../../../src/components/ProviderIcon';
 
 export default function ModelsPage(): JSX.Element {
-  const [data, setData] = useState<LeaderboardEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: rawData, loading, error } = useLeaderboardData();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'tci' | 'mean' | 'name'>('tci');
   const [selectedProviders, setSelectedProviders] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    fetch('/open_telco/data/telecom-llm-leaderboard.csv')
-      .then(response => {
-        if (!response.ok) throw new Error('Failed to load data');
-        return response.text();
-      })
-      .then(csvText => {
-        const parsed = parseCSV(csvText);
-        setData(parsed);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
+  const data = useMemo(() => rawData.map(withTCI), [rawData]);
 
-  // Get unique providers
   const providers = useMemo(() => {
-    const unique = [...new Set(data.map(d => d.provider))].sort();
-    return unique;
+    return [...new Set(data.map(d => d.provider))].sort();
   }, [data]);
 
-  // Filter and sort data
   const filteredData = useMemo(() => {
     let result = [...data];
 
-    // Filter by search
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       result = result.filter(d =>
@@ -190,12 +27,10 @@ export default function ModelsPage(): JSX.Element {
       );
     }
 
-    // Filter by provider
     if (selectedProviders.size > 0) {
       result = result.filter(d => selectedProviders.has(d.provider));
     }
 
-    // Sort
     result.sort((a, b) => {
       if (sortBy === 'tci') {
         if (a.tci === null && b.tci === null) return 0;
@@ -245,7 +80,7 @@ export default function ModelsPage(): JSX.Element {
 
         {/* Model list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-          {filteredData.map((model, idx) => (
+          {filteredData.map((model) => (
             <div
               key={`${model.provider}-${model.model}`}
               style={{
@@ -257,14 +92,7 @@ export default function ModelsPage(): JSX.Element {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {/* Provider icon placeholder */}
-                <div style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  backgroundColor: COLORS[model.provider] || COLORS['Other'],
-                  opacity: 0.8,
-                }} />
+                <ProviderIcon provider={model.provider} size={24} />
                 <div>
                   <div style={{ fontWeight: '600', fontSize: '15px', color: '#1a1a1a' }}>
                     {model.model}

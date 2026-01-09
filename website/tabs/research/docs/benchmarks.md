@@ -2,6 +2,7 @@
 id: benchmarks
 title: Benchmarks
 sidebar_label: Benchmarks
+hide_table_of_contents: true
 ---
 
 import BenchmarkCard from '@site/tabs/research/components/BenchmarkCard';
