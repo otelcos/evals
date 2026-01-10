@@ -2,61 +2,11 @@
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Vertical
-from textual.reactive import reactive
+from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Static
 
-GSMA_RED = "#a61d2d"
-
-
-class MenuItem(Static):
-    """A selectable menu item."""
-
-    highlighted = reactive(False)
-
-    def __init__(self, label: str, action: str) -> None:
-        super().__init__()
-        self.label = label
-        self.action = action
-
-    def render(self) -> str:
-        if self.highlighted:
-            return f"[{GSMA_RED}]›[/] [bold #f0f6fc]{self.label}[/]"
-        return f"  [#8b949e]{self.label}[/]"
-
-
-class Menu(Vertical):
-    """Container for menu items with keyboard navigation."""
-
-    selected_index = reactive(0)
-
-    def __init__(self, *items: tuple[str, str]) -> None:
-        super().__init__()
-        self.items = items
-
-    def compose(self) -> ComposeResult:
-        for label, action in self.items:
-            yield MenuItem(label, action)
-
-    def on_mount(self) -> None:
-        self._update_highlight()
-
-    def watch_selected_index(self) -> None:
-        self._update_highlight()
-
-    def _update_highlight(self) -> None:
-        for i, item in enumerate(self.query(MenuItem)):
-            item.highlighted = i == self.selected_index
-
-    def move_up(self) -> None:
-        self.selected_index = (self.selected_index - 1) % len(self.items)
-
-    def move_down(self) -> None:
-        self.selected_index = (self.selected_index + 1) % len(self.items)
-
-    def get_selected(self) -> tuple[str, str]:
-        return self.items[self.selected_index]
+from open_telco.cli.widgets import Menu
 
 
 class MainMenuScreen(Screen[None]):
@@ -64,7 +14,6 @@ class MainMenuScreen(Screen[None]):
 
     DEFAULT_CSS = """
     MainMenuScreen {
-        background: #0d1117;
         padding: 2 4;
         layout: vertical;
     }
@@ -140,7 +89,7 @@ class MainMenuScreen(Screen[None]):
         self.query_one(Menu).move_down()
 
     def action_select(self) -> None:
-        label, action = self.query_one(Menu).get_selected()
+        label, action, _disabled = self.query_one(Menu).get_selected()
         if action == "set_models":
             from open_telco.cli.screens.set_models import SetModelsCategoryScreen
 
@@ -150,7 +99,11 @@ class MainMenuScreen(Screen[None]):
 
             self.app.push_screen(RunEvalsScreen())
         elif action == "preview_leaderboard":
-            self.notify("preview-leaderboard - coming-soon!", title="info")
+            from open_telco.cli.screens.preview_leaderboard import (
+                PreviewLeaderboardScreen,
+            )
+
+            self.app.push_screen(PreviewLeaderboardScreen())
         elif action == "submit":
             self.notify("submit - coming-soon!", title="info")
 

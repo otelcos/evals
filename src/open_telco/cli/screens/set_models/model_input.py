@@ -8,15 +8,12 @@ from textual.widgets import Input, Static
 
 from open_telco.cli.config import PROVIDERS, EnvManager
 
-GSMA_RED = "#a61d2d"
-
 
 class ModelInputScreen(Screen[None]):
     """Screen for entering model name."""
 
     DEFAULT_CSS = """
     ModelInputScreen {
-        background: #0d1117;
         padding: 2 4;
         layout: vertical;
     }
@@ -139,18 +136,11 @@ class ModelInputScreen(Screen[None]):
                 severity="information",
                 title="success",
             )
-            # Return to main menu (pop all set-models screens)
-            if self.from_api_key_screen:
-                # Pop: ModelInput -> ApiKeyInput -> ProviderSelect -> CategoryMenu
-                self.app.pop_screen()  # Back to ApiKeyInput
-                self.app.pop_screen()  # Back to ProviderSelect
-                self.app.pop_screen()  # Back to CategoryMenu
-                self.app.pop_screen()  # Back to MainMenu
-            else:
-                # Pop: ModelInput -> ProviderSelect -> CategoryMenu
-                self.app.pop_screen()  # Back to ProviderSelect
-                self.app.pop_screen()  # Back to CategoryMenu
-                self.app.pop_screen()  # Back to MainMenu
+            # Return to main menu using switch_screen to avoid race conditions
+            # from multiple pop_screen() calls
+            from open_telco.cli.screens.main_menu import MainMenuScreen
+
+            self.app.switch_screen(MainMenuScreen())
         else:
             self.notify("failed-to-save-model-configuration", severity="error")
 

@@ -8,15 +8,12 @@ from textual.widgets import Input, Static
 
 from open_telco.cli.config import PROVIDERS, EnvManager
 
-GSMA_RED = "#a61d2d"
-
 
 class ApiKeyInputScreen(Screen[None]):
     """Screen for entering API key."""
 
     DEFAULT_CSS = """
     ApiKeyInputScreen {
-        background: #0d1117;
         padding: 2 4;
         layout: vertical;
     }

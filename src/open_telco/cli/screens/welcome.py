@@ -39,8 +39,7 @@ class WelcomeScreen(Screen[None]):
 
     DEFAULT_CSS = """
     WelcomeScreen {
-        background: #0d1117;
-        padding: 2 4;
+        padding: 0 4;
     }
 
     WelcomeScreen > Container {
@@ -58,7 +57,7 @@ class WelcomeScreen(Screen[None]):
     }
 
     WelcomeScreen .prompt {
-        margin-top: 2;
+        margin-top: 1;
         color: #8b949e;
     }
     """
