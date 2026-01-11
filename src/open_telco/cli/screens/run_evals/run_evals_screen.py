@@ -344,6 +344,7 @@ class RunEvalsScreen(Screen[None]):
         self._current_process: subprocess.Popen[str] | None = None
         self._viewer_process: subprocess.Popen[str] | None = None
         self._cancelled: bool = False
+        self._full_eval_dot_count: int = 0
 
     def compose(self) -> ComposeResult:
         yield Static("run-evals", id="header")
@@ -494,13 +495,27 @@ class RunEvalsScreen(Screen[None]):
             finally:
                 self._viewer_process = None
 
+    def _render_full_eval_status(self) -> str:
+        """Render the animated running-full-evaluation status text."""
+        dots = "." * ((self._full_eval_dot_count % 3) + 1)
+        padding = " " * (3 - len(dots))
+        return f"[#8b949e]running-full-evaluation{dots}{padding}[/]"
+
     def _animate_dots(self) -> None:
-        """Animate the cooking... dots for running items."""
+        """Animate the cooking... dots for running items and full eval status."""
         has_running = False
         for item in self.query(ChecklistItem):
             if item.status == "running":
                 has_running = True
                 item.dot_count = (item.dot_count + 1) % 5
+
+        # Animate full eval status when in RUNNING_EVAL stage
+        if self.stage == Stage.RUNNING_EVAL:
+            has_running = True
+            self._full_eval_dot_count = (self._full_eval_dot_count + 1) % 3
+            self.query_one("#error-message", Static).update(
+                self._render_full_eval_status()
+            )
 
         # Pause timer when nothing is animating to save CPU
         if not has_running and self._animation_timer:
@@ -755,8 +770,13 @@ class RunEvalsScreen(Screen[None]):
         # Start viewer immediately so URL is visible
         self._start_viewer()
 
+        # Reset animation counter and resume timer for full eval animation
+        self._full_eval_dot_count = 0
+        if self._animation_timer:
+            self._animation_timer.resume()
+
         self.query_one("#error-message", Static).update(
-            "[#8b949e]running-full-evaluation...[/]"
+            self._render_full_eval_status()
         )
         self.query_one("#footer", Static).update("[#8b949e]q[/] cancel-unsafe")
         self._run_full_eval()
