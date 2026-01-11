@@ -14,14 +14,14 @@ class ApiKeyInputScreen(Screen[None]):
 
     DEFAULT_CSS = """
     ApiKeyInputScreen {
-        padding: 2 4;
+        padding: 0 4;
         layout: vertical;
     }
 
     #header {
         color: #a61d2d;
         text-style: bold;
-        padding: 1 0 2 0;
+        padding: 0 0 2 0;
         height: auto;
     }
 

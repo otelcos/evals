@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+from inspect_ai.analysis import evals_df
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -22,6 +23,22 @@ from open_telco.cli.services.tci_calculator import (
     sort_by_tci,
     with_tci,
 )
+
+# Map provider prefixes to display names
+_PROVIDER_NAMES = {
+    "openai": "Openai",
+    "anthropic": "Anthropic",
+    "google": "Google",
+    "mistralai": "Mistral",
+    "deepseek": "Deepseek",
+    "meta-llama": "Meta",
+    "cohere": "Cohere",
+    "together": "Together",
+    "openrouter": "Openrouter",
+    "groq": "Groq",
+    "fireworks": "Fireworks",
+    "allenai": "Allenai",
+}
 
 # Minimum array length for score extraction (score, stderr)
 _MIN_SCORE_ARRAY_LEN = 2
@@ -46,14 +63,14 @@ class PreviewLeaderboardScreen(Screen[None]):
 
     DEFAULT_CSS = """
     PreviewLeaderboardScreen {
-        padding: 2 4;
+        padding: 0 4;
         layout: vertical;
     }
 
     #header {
         color: #a61d2d;
         text-style: bold;
-        padding: 1 0 1 0;
+        padding: 0 0 1 0;
         height: auto;
     }
 
@@ -81,11 +98,11 @@ class PreviewLeaderboardScreen(Screen[None]):
     }
 
     DataTable > .datatable--cursor {
-        background: #30363d;
+        background: #21262d;
     }
 
     DataTable > .datatable--header-cursor {
-        background: #30363d;
+        background: #21262d;
     }
 
     #footer {
@@ -183,16 +200,132 @@ class PreviewLeaderboardScreen(Screen[None]):
         return Path(__file__).parent.parent.parent.parent
 
     def _load_local_results(self) -> list[LeaderboardEntry]:
-        """Load all user results from logs/leaderboard/results.parquet.
+        """Load user results from logs/leaderboard/ JSON files.
+
+        Uses inspect_ai.analysis.evals_df() to parse JSON trajectory logs directly.
+        This allows viewing partial results when only some evals completed.
+        Falls back to results.parquet if no JSON logs found.
 
         Returns empty list if no local results exist (not an error).
         """
         open_telco_dir = self._get_open_telco_dir()
-        parquet_path = open_telco_dir / "logs" / "leaderboard" / "results.parquet"
+        log_dir = open_telco_dir / "logs" / "leaderboard"
 
-        if not parquet_path.exists():
+        if not log_dir.exists():
             return []
 
+        # Check if there are any JSON files
+        json_files = list(log_dir.glob("*.json"))
+
+        if json_files:
+            # Use evals_df to parse JSON logs directly
+            return self._load_from_json_logs(log_dir)
+
+        # Fallback to parquet if it exists
+        parquet_path = log_dir / "results.parquet"
+        if parquet_path.exists():
+            return self._load_from_parquet(parquet_path)
+
+        return []
+
+    def _load_from_json_logs(self, log_dir: Path) -> list[LeaderboardEntry]:
+        """Load results from JSON trajectory logs using evals_df.
+
+        Args:
+            log_dir: Directory containing JSON log files
+
+        Returns:
+            List of LeaderboardEntry objects with scores from JSON logs
+        """
+        try:
+            df = evals_df(str(log_dir))
+        except Exception:
+            return []
+
+        if df.empty:
+            return []
+
+        # Group by model and aggregate scores
+        entries: dict[str, LeaderboardEntry] = {}
+
+        for _, row in df.iterrows():
+            model_str = row.get("model", "Unknown")
+            model, provider = self._format_model_display(model_str)
+
+            # Create or get entry
+            if model not in entries:
+                entries[model] = LeaderboardEntry(
+                    model=model,
+                    provider=provider,
+                    is_user=True,
+                )
+
+            entry = entries[model]
+
+            # Extract task and score
+            task_name = row.get("task_name", "")
+            score = row.get("score_headline_value")
+            stderr = row.get("score_headline_stderr")
+
+            if pd.notna(score):
+                # Normalize score to 0-100 scale
+                score_val = float(score) * 100 if float(score) <= 1.0 else float(score)
+                stderr_val = (
+                    float(stderr) * 100
+                    if pd.notna(stderr) and float(stderr) <= 1.0
+                    else (float(stderr) if pd.notna(stderr) else None)
+                )
+
+                # Map task to entry field
+                task_lower = task_name.lower()
+                if "teleqna" in task_lower:
+                    entry.teleqna = score_val
+                    entry.teleqna_stderr = stderr_val
+                elif "telelogs" in task_lower:
+                    entry.telelogs = score_val
+                    entry.telelogs_stderr = stderr_val
+                elif "telemath" in task_lower:
+                    entry.telemath = score_val
+                    entry.telemath_stderr = stderr_val
+                elif "three_gpp" in task_lower or "3gpp" in task_lower:
+                    entry.tsg = score_val
+                    entry.tsg_stderr = stderr_val
+
+        return list(entries.values())
+
+    def _format_model_display(self, model_str: str) -> tuple[str, str]:
+        """Format model string to (model_name, provider) tuple.
+
+        Handles formats like:
+        - openrouter/openai/gpt-4o -> (gpt-4o, Openai)
+        - openai/gpt-4o -> (gpt-4o, Openai)
+        """
+        parts = model_str.split("/")
+
+        if len(parts) >= 3:
+            # Format: router/provider/model
+            provider = parts[1]
+            model_name = "/".join(parts[2:])
+        elif len(parts) == 2:
+            # Format: provider/model
+            provider = parts[0]
+            model_name = parts[1]
+        else:
+            provider = "Unknown"
+            model_name = model_str
+
+        provider_display = _PROVIDER_NAMES.get(provider.lower(), provider.title())
+        return model_name, provider_display
+
+    def _load_from_parquet(self, parquet_path: Path) -> list[LeaderboardEntry]:
+        """Load results from parquet file (legacy fallback).
+
+        Args:
+            parquet_path: Path to results.parquet
+
+        Returns:
+            List of LeaderboardEntry objects
+        """
         try:
             df = pd.read_parquet(parquet_path)
         except Exception:

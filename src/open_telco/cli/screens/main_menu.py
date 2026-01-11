@@ -14,14 +14,14 @@ class MainMenuScreen(Screen[None]):
 
     DEFAULT_CSS = """
     MainMenuScreen {
-        padding: 2 4;
+        padding: 0 4;
         layout: vertical;
     }
 
     #header {
         color: #a61d2d;
         text-style: bold;
-        padding: 1 0 2 0;
+        padding: 0 0 2 0;
         height: auto;
     }
 
@@ -58,6 +58,7 @@ class MainMenuScreen(Screen[None]):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("enter", "select", "Select"),
+        Binding("s", "settings", "Settings"),
         Binding("up", "up", "Up", show=False),
         Binding("down", "down", "Down", show=False),
         Binding("k", "up", "Up", show=False),
@@ -77,7 +78,7 @@ class MainMenuScreen(Screen[None]):
             yield Menu(*self.MENU_ITEMS)
         yield Static("", id="spacer")
         yield Static(
-            "[#8b949e]↵[/] select [#30363d]·[/] [#8b949e]q[/] quit",
+            "[#8b949e]↵[/] select [#30363d]·[/] [#8b949e]s[/] settings [#30363d]·[/] [#8b949e]q[/] quit",
             id="footer",
             markup=True,
         )
@@ -105,7 +106,15 @@ class MainMenuScreen(Screen[None]):
 
             self.app.push_screen(PreviewLeaderboardScreen())
         elif action == "submit":
-            self.notify("submit - coming-soon!", title="info")
+            from open_telco.cli.screens.submit import SubmitScreen
+
+            self.app.push_screen(SubmitScreen())
+
+    def action_settings(self) -> None:
+        """Open settings screen."""
+        from open_telco.cli.screens.settings import SettingsScreen
+
+        self.app.push_screen(SettingsScreen())
 
     def action_quit(self) -> None:
         """Quit the application."""
