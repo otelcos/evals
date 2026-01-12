@@ -280,6 +280,17 @@ class TestProcessCleanupMatrix:
 class TestStubbornProcessKill:
     """Test SIGTERM -> SIGKILL escalation for stubborn processes."""
 
+    @pytest.fixture
+    def stubborn_process_screen(
+        self, screen: RunEvalsScreen
+    ) -> tuple[RunEvalsScreen, MagicMock]:
+        """Create screen with mock process that times out on SIGTERM."""
+        mock_proc = MagicMock()
+        mock_proc.wait.side_effect = [subprocess.TimeoutExpired("cmd", 2), None]
+        mock_proc.pid = 12345
+        screen._current_process = mock_proc
+        return screen, mock_proc
+
     def test_terminate_called_first(self, screen: RunEvalsScreen) -> None:
         """SIGTERM (via terminate or killpg) should be sent first."""
         mock_proc = MagicMock()
@@ -292,17 +303,26 @@ class TestStubbornProcessKill:
 
         mock_proc.terminate.assert_called_once()
 
-    def test_kill_called_after_timeout(self, screen: RunEvalsScreen) -> None:
-        """SIGKILL should be sent after 2s timeout on SIGTERM."""
-        mock_proc = MagicMock()
-        mock_proc.wait.side_effect = [subprocess.TimeoutExpired("cmd", 2), None]
-        mock_proc.pid = 12345
-        screen._current_process = mock_proc
+    def test_terminate_called_before_kill_escalation(
+        self, stubborn_process_screen: tuple[RunEvalsScreen, MagicMock]
+    ) -> None:
+        """SIGTERM should be sent first before escalating to SIGKILL."""
+        screen, mock_proc = stubborn_process_screen
 
         with patch("os.getpgid", side_effect=ProcessLookupError):
             screen._kill_current_process()
 
         mock_proc.terminate.assert_called_once()
+
+    def test_kill_called_after_terminate_timeout(
+        self, stubborn_process_screen: tuple[RunEvalsScreen, MagicMock]
+    ) -> None:
+        """SIGKILL should be sent after SIGTERM times out."""
+        screen, mock_proc = stubborn_process_screen
+
+        with patch("os.getpgid", side_effect=ProcessLookupError):
+            screen._kill_current_process()
+
         mock_proc.kill.assert_called_once()
 
     def test_timeout_uses_2_seconds(self, screen: RunEvalsScreen) -> None:
@@ -352,8 +372,8 @@ class TestProcessGroupTermination:
         except (ProcessLookupError, OSError):
             pass  # Expected
 
-    def test_killpg_called_for_process_group(self, screen: RunEvalsScreen) -> None:
-        """os.killpg should be called to terminate process group."""
+    def test_getpgid_called_for_process(self, screen: RunEvalsScreen) -> None:
+        """os.getpgid should be called with process pid."""
         mock_proc = MagicMock()
         mock_proc.wait.return_value = 0
         mock_proc.pid = 12345
@@ -361,11 +381,27 @@ class TestProcessGroupTermination:
 
         with (
             patch("os.getpgid", return_value=12345) as mock_getpgid,
-            patch("os.killpg") as mock_killpg,
+            patch("os.killpg"),
         ):
             screen._kill_current_process()
 
         mock_getpgid.assert_called_with(12345)
+
+    def test_killpg_sends_sigterm_to_process_group(
+        self, screen: RunEvalsScreen
+    ) -> None:
+        """os.killpg should send SIGTERM to the process group."""
+        mock_proc = MagicMock()
+        mock_proc.wait.return_value = 0
+        mock_proc.pid = 12345
+        screen._current_process = mock_proc
+
+        with (
+            patch("os.getpgid", return_value=12345),
+            patch("os.killpg") as mock_killpg,
+        ):
+            screen._kill_current_process()
+
         mock_killpg.assert_called_with(12345, signal.SIGTERM)
 
 
