@@ -5,29 +5,22 @@ from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
 
-# Shared color constants
-GSMA_RED = "#a61d2d"
-GSMA_BACKGROUND = "#0d1117"
-GSMA_TEXT_MUTED = "#8b949e"
-GSMA_TEXT_PRIMARY = "#f0f6fc"
-GSMA_TEXT_DISABLED = "#484f58"
-GSMA_BORDER = "#30363d"
-GSMA_HOVER = "#21262d"
+from open_telco.cli.constants import Colors
 
 
 class MenuItem(Static):
     """A selectable menu item with optional disabled state."""
 
-    DEFAULT_CSS = """
-    MenuItem {
+    DEFAULT_CSS = f"""
+    MenuItem {{
         height: 1;
         padding: 0;
         background: transparent;
-    }
+    }}
 
-    MenuItem:hover {
-        background: #21262d;
-    }
+    MenuItem:hover {{
+        background: {Colors.HOVER};
+    }}
     """
 
     highlighted = reactive(False)
@@ -41,13 +34,16 @@ class MenuItem(Static):
         self.disabled = disabled
 
     def render(self) -> str:
+        prefix = f"[{Colors.RED}]>[/] " if self.highlighted else "  "
+        style = self._compute_item_style()
+        return f"{prefix}[{style}]{self.label}[/]"
+
+    def _compute_item_style(self) -> str:
         if self.disabled:
-            if self.highlighted:
-                return f"[{GSMA_RED}]>[/] [{GSMA_TEXT_DISABLED}]{self.label}[/]"
-            return f"  [{GSMA_TEXT_DISABLED}]{self.label}[/]"
+            return Colors.TEXT_DISABLED
         if self.highlighted:
-            return f"[{GSMA_RED}]>[/] [bold {GSMA_TEXT_PRIMARY}]{self.label}[/]"
-        return f"  [{GSMA_TEXT_MUTED}]{self.label}[/]"
+            return f"bold {Colors.TEXT_PRIMARY}"
+        return Colors.TEXT_MUTED
 
 
 class Menu(Vertical):
@@ -69,13 +65,11 @@ class Menu(Vertical):
         self, *items: tuple[str, str] | tuple[str, str, bool], **kwargs
     ) -> None:
         super().__init__(**kwargs)
-        # Normalize items to 3-tuples
-        self.items: list[tuple[str, str, bool]] = []
-        for item in items:
-            if len(item) == 2:
-                self.items.append((item[0], item[1], False))
-            else:
-                self.items.append(item)  # type: ignore
+        # Normalize items to 3-tuples using list comprehension
+        self.items: list[tuple[str, str, bool]] = [
+            (item[0], item[1], item[2] if len(item) > 2 else False)
+            for item in items
+        ]
         self._cached_items: list[MenuItem] | None = None
 
     def compose(self) -> ComposeResult:

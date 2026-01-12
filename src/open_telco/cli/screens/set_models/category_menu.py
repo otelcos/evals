@@ -3,61 +3,42 @@
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
-from textual.screen import Screen
 from textual.widgets import Static
 
+from open_telco.cli.base_screen import BaseScreen
+from open_telco.cli.constants import Colors
 from open_telco.cli.widgets import Menu
 
 
-class SetModelsCategoryScreen(Screen[None]):
+class SetModelsCategoryScreen(BaseScreen):
     """Screen for selecting model category."""
 
-    DEFAULT_CSS = """
-    SetModelsCategoryScreen {
+    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    SetModelsCategoryScreen {{
         padding: 0 4;
         layout: vertical;
-    }
+    }}
 
-    #header {
-        color: #a61d2d;
-        text-style: bold;
-        padding: 0 0 2 0;
-        height: auto;
-    }
-
-    #menu-container {
+    #menu-container {{
         width: 100%;
         max-width: 50;
         height: auto;
         padding: 0 2;
-    }
+    }}
 
-    Menu {
+    Menu {{
         height: auto;
         padding: 0;
-    }
+    }}
 
-    MenuItem {
+    MenuItem {{
         height: 1;
         padding: 0;
         background: transparent;
-    }
-
-    #spacer {
-        height: 1fr;
-    }
-
-    #footer {
-        dock: bottom;
-        height: 1;
-        padding: 0 0;
-        color: #484f58;
-    }
+    }}
     """
 
-    BINDINGS = [
-        Binding("q", "go_back", "Back"),
-        Binding("escape", "go_back", "Back"),
+    BINDINGS = BaseScreen.BINDINGS + [
         Binding("enter", "select", "Select"),
         Binding("up", "up", "Up", show=False),
         Binding("down", "down", "Down", show=False),
@@ -78,7 +59,7 @@ class SetModelsCategoryScreen(Screen[None]):
             yield Menu(*self.MENU_ITEMS)
         yield Static("", id="spacer")
         yield Static(
-            "[#8b949e]↵[/] select [#30363d]·[/] [#8b949e]q[/] back",
+            f"[{Colors.TEXT_MUTED}]↵[/] select [{Colors.BORDER}]·[/] [{Colors.TEXT_MUTED}]q[/] back",
             id="footer",
             markup=True,
         )
@@ -101,7 +82,3 @@ class SetModelsCategoryScreen(Screen[None]):
             )
 
             self.app.push_screen(ProviderSelectScreen())
-
-    def action_go_back(self) -> None:
-        """Go back to main menu."""
-        self.app.pop_screen()
