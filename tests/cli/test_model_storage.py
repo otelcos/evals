@@ -13,6 +13,7 @@ import pytest
 from open_telco.cli.app import OpenTelcoApp
 from open_telco.cli.config.env_manager import PROVIDERS, EnvManager
 from open_telco.cli.screens.set_models import ModelInputScreen
+from open_telco.cli.types import Result
 
 
 class TestModelStorage:
@@ -30,7 +31,7 @@ class TestModelStorage:
         monkeypatch.chdir(tmp_path)
 
         # Create mock for EnvManager.set()
-        mock_set = MagicMock(return_value=True)
+        mock_set = MagicMock(return_value=Result.ok(True))
 
         app = OpenTelcoApp()
 
@@ -66,7 +67,7 @@ class TestModelStorage:
         temp_env.write_text('OPENAI_API_KEY="test-key"\n')
         monkeypatch.chdir(tmp_path)
 
-        mock_set = MagicMock(return_value=True)
+        mock_set = MagicMock(return_value=Result.ok(True))
 
         app = OpenTelcoApp()
 
@@ -100,7 +101,7 @@ class TestModelStorage:
         temp_env.write_text('OPENAI_API_KEY="test-key"\n')
         monkeypatch.chdir(tmp_path)
 
-        mock_set = MagicMock(return_value=True)
+        mock_set = MagicMock(return_value=Result.ok(True))
 
         app = OpenTelcoApp()
 
@@ -151,7 +152,7 @@ class TestModelStorageForAllProviders:
         temp_env.write_text(f'{env_key}="test-key"\n')
         monkeypatch.chdir(tmp_path)
 
-        mock_set = MagicMock(return_value=True)
+        mock_set = MagicMock(return_value=Result.ok(True))
 
         app = OpenTelcoApp()
 
