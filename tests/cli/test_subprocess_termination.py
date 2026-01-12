@@ -44,9 +44,7 @@ def screen() -> RunEvalsScreen:
 @pytest.fixture
 def mock_app(screen: RunEvalsScreen) -> MagicMock:
     """Mock the app property for action_cancel tests."""
-    with patch.object(
-        type(screen), "app", new_callable=PropertyMock
-    ) as mock_app_prop:
+    with patch.object(type(screen), "app", new_callable=PropertyMock) as mock_app_prop:
         mock_app = MagicMock()
         mock_app_prop.return_value = mock_app
         yield mock_app
@@ -354,9 +352,7 @@ class TestProcessGroupTermination:
         except (ProcessLookupError, OSError):
             pass  # Expected
 
-    def test_killpg_called_for_process_group(
-        self, screen: RunEvalsScreen
-    ) -> None:
+    def test_killpg_called_for_process_group(self, screen: RunEvalsScreen) -> None:
         """os.killpg should be called to terminate process group."""
         mock_proc = MagicMock()
         mock_proc.wait.return_value = 0
@@ -543,9 +539,7 @@ class TestAnimationTimerCleanup:
 
         mock_timer.stop.assert_called_once()
 
-    def test_unmount_clears_timer_reference(
-        self, screen: RunEvalsScreen
-    ) -> None:
+    def test_unmount_clears_timer_reference(self, screen: RunEvalsScreen) -> None:
         """on_unmount should set _animation_timer to None."""
         mock_timer = MagicMock()
         screen._animation_timer = mock_timer

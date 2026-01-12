@@ -12,7 +12,6 @@ import pytest
 
 from open_telco.cli.app import OpenTelcoApp
 from open_telco.cli.config.env_manager import PROVIDERS, EnvManager
-from open_telco.cli.screens.main_menu import MainMenuScreen
 from open_telco.cli.screens.set_models import ModelInputScreen
 
 
@@ -86,7 +85,9 @@ class TestModelStorage:
                 await pilot.press("enter")
 
                 # Verify custom model was saved
-                mock_set.assert_called_once_with("INSPECT_EVAL_MODEL", "openai/gpt-4-turbo")
+                mock_set.assert_called_once_with(
+                    "INSPECT_EVAL_MODEL", "openai/gpt-4-turbo"
+                )
 
     async def test_empty_model_name_not_saved(
         self,

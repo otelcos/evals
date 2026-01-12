@@ -51,16 +51,18 @@ class TestTrajectoryBundler:
         assert any("gpt4o" in name for name in filenames)
         assert not any("claude" in name for name in filenames)
 
-    def test_find_trajectories_provider_model_format(
-        self, tmp_path: Path
-    ) -> None:
+    def test_find_trajectories_provider_model_format(self, tmp_path: Path) -> None:
         """Should match provider/model format like 'openai/gpt-4o'."""
         traj = tmp_path / "test_traj.json"
-        traj.write_text(json.dumps({
-            "eval": {
-                "model": "openai/gpt-4o",
-            },
-        }))
+        traj.write_text(
+            json.dumps(
+                {
+                    "eval": {
+                        "model": "openai/gpt-4o",
+                    },
+                }
+            )
+        )
 
         result = _trajectory_matches_model(
             {"eval": {"model": "openai/gpt-4o"}},
@@ -70,9 +72,7 @@ class TestTrajectoryBundler:
 
         assert result is True
 
-    def test_find_trajectories_router_provider_model(
-        self, tmp_path: Path
-    ) -> None:
+    def test_find_trajectories_router_provider_model(self, tmp_path: Path) -> None:
         """Should match router/provider/model format like 'openrouter/openai/gpt-4o'."""
         result = _trajectory_matches_model(
             {"eval": {"model": "openrouter/openai/gpt-4o"}},
@@ -82,17 +82,19 @@ class TestTrajectoryBundler:
 
         assert result is True
 
-    def test_no_trajectories_found_returns_empty(
-        self, tmp_path: Path
-    ) -> None:
+    def test_no_trajectories_found_returns_empty(self, tmp_path: Path) -> None:
         """Should return empty dict when no matching trajectories found."""
         # Create a trajectory for a different model
         traj = tmp_path / "other_model.json"
-        traj.write_text(json.dumps({
-            "eval": {
-                "model": "anthropic/claude-3",
-            },
-        }))
+        traj.write_text(
+            json.dumps(
+                {
+                    "eval": {
+                        "model": "anthropic/claude-3",
+                    },
+                }
+            )
+        )
 
         files = _find_trajectory_files(tmp_path, "gpt-4o", "Openai")
 
@@ -106,11 +108,15 @@ class TestTrajectoryBundler:
 
         # Create valid JSON file
         valid = tmp_path / "valid.json"
-        valid.write_text(json.dumps({
-            "eval": {
-                "model": "openai/gpt-4o",
-            },
-        }))
+        valid.write_text(
+            json.dumps(
+                {
+                    "eval": {
+                        "model": "openai/gpt-4o",
+                    },
+                }
+            )
+        )
 
         files = _find_trajectory_files(tmp_path, "gpt-4o", "Openai")
 

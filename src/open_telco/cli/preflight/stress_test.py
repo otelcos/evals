@@ -25,10 +25,26 @@ class StressTestResult:
 
 
 STRESS_TEST_PROMPTS = (
-    {"name": "nested_braces", "prompt": "Calculate {x: x+1} for x=5. Put your final answer in \\boxed{}.", "timeout": DEFAULT_TEST_TIMEOUT},
-    {"name": "multiple_boxed", "prompt": "Solve step by step: First \\boxed{step1}, then \\boxed{step2}, final answer \\boxed{result}. What is 2+3?", "timeout": DEFAULT_TEST_TIMEOUT},
-    {"name": "long_context", "prompt": f"Context: {'The system processes data. ' * 50}\n\nBased on the above context, what is 7+8? Answer in \\boxed{{}} format.", "timeout": DEFAULT_TEST_TIMEOUT},
-    {"name": "simple_math", "prompt": "What is 10 divided by 2? Put your answer in \\boxed{}.", "timeout": DEFAULT_TEST_TIMEOUT},
+    {
+        "name": "nested_braces",
+        "prompt": "Calculate {x: x+1} for x=5. Put your final answer in \\boxed{}.",
+        "timeout": DEFAULT_TEST_TIMEOUT,
+    },
+    {
+        "name": "multiple_boxed",
+        "prompt": "Solve step by step: First \\boxed{step1}, then \\boxed{step2}, final answer \\boxed{result}. What is 2+3?",
+        "timeout": DEFAULT_TEST_TIMEOUT,
+    },
+    {
+        "name": "long_context",
+        "prompt": f"Context: {'The system processes data. ' * 50}\n\nBased on the above context, what is 7+8? Answer in \\boxed{{}} format.",
+        "timeout": DEFAULT_TEST_TIMEOUT,
+    },
+    {
+        "name": "simple_math",
+        "prompt": "What is 10 divided by 2? Put your answer in \\boxed{}.",
+        "timeout": DEFAULT_TEST_TIMEOUT,
+    },
 )
 
 

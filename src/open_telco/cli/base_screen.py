@@ -1,4 +1,5 @@
 """Base screen class with shared CSS and navigation patterns."""
+
 from __future__ import annotations
 
 from textual.binding import Binding

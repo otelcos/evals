@@ -1,21 +1,21 @@
 """Tests for run-evals screen."""
 
-import pytest
+import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import tempfile
 
 import pandas as pd
+import pytest
 
 from open_telco.cli.app import OpenTelcoApp
 from open_telco.cli.screens.main_menu import MainMenuScreen
 from open_telco.cli.screens.run_evals import RunEvalsScreen
 from open_telco.cli.screens.run_evals.run_evals_screen import (
-    ChecklistItem,
-    TaskSelectScreen,
-    Stage,
-    TASK_TO_COLUMN,
     PROVIDER_NAMES,
+    TASK_TO_COLUMN,
+    ChecklistItem,
+    Stage,
+    TaskSelectScreen,
 )
 
 
@@ -290,12 +290,13 @@ class TestTaskSelectScreen:
     @pytest.mark.asyncio
     async def test_task_select_screen_shows_all_tasks(self) -> None:
         """TaskSelectScreen should show all 4 tasks."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import (
-            TaskSelectScreen,
-            TaskChecklistItem,
-            ALL_TASKS,
-        )
         from textual.app import App
+
+        from open_telco.cli.screens.run_evals.run_evals_screen import (
+            ALL_TASKS,
+            TaskChecklistItem,
+            TaskSelectScreen,
+        )
 
         class TestApp(App):
             def on_mount(self) -> None:
@@ -311,11 +312,12 @@ class TestTaskSelectScreen:
     @pytest.mark.asyncio
     async def test_task_select_screen_toggle_selection(self) -> None:
         """Space should toggle task selection."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import (
-            TaskSelectScreen,
-            TaskChecklistItem,
-        )
         from textual.app import App
+
+        from open_telco.cli.screens.run_evals.run_evals_screen import (
+            TaskChecklistItem,
+            TaskSelectScreen,
+        )
 
         class TestApp(App):
             def on_mount(self) -> None:
@@ -396,8 +398,7 @@ class TestTaskPaths:
         for task_path in ALL_TASKS:
             full_path = open_telco_dir / task_path
             assert full_path.exists(), (
-                f"task path '{task_path}' does not exist. "
-                f"Expected at: {full_path}"
+                f"task path '{task_path}' does not exist. Expected at: {full_path}"
             )
             assert full_path.is_file(), f"task path '{task_path}' is not a file"
 
@@ -412,9 +413,16 @@ class TestTaskPaths:
 
     def test_open_telco_dir_calculation_is_correct(self) -> None:
         """Verify the path calculation in _run_mini_test finds correct directory."""
-
         # Simulate the path calculation from run_evals_screen.py
-        run_evals_screen_path = Path(__file__).parent.parent.parent / "src" / "open_telco" / "cli" / "screens" / "run_evals" / "run_evals_screen.py"
+        run_evals_screen_path = (
+            Path(__file__).parent.parent.parent
+            / "src"
+            / "open_telco"
+            / "cli"
+            / "screens"
+            / "run_evals"
+            / "run_evals_screen.py"
+        )
 
         # The calculation in the code: Path(__file__).parent.parent.parent.parent
         # From run_evals_screen.py: cli/screens/run_evals/run_evals_screen.py
@@ -494,14 +502,18 @@ class TestResultsPreviewFormatting:
         screen = RunEvalsScreen()
         screen.model = "test"
 
-        df = pd.DataFrame([{
-            "model": "gpt-5.2 (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": [75.0, 4.35, 100.0],
-            "telemath": [39.0, 4.9, 100.0],
-            "3gpp_tsg": [54.0, 5.01, 100.0],
-            "date": "2026-01-09"
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-5.2 (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": [75.0, 4.35, 100.0],
+                    "telemath": [39.0, 4.9, 100.0],
+                    "3gpp_tsg": [54.0, 5.01, 100.0],
+                    "date": "2026-01-09",
+                }
+            ]
+        )
 
         result = screen._format_results_preview(df)
 
@@ -518,14 +530,18 @@ class TestResultsPreviewFormatting:
         screen = RunEvalsScreen()
         screen.model = "test"
 
-        df = pd.DataFrame([{
-            "model": "test-model (Test)",
-            "teleqna": [50.0, 2.0, 100.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09"
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "test-model (Test)",
+                    "teleqna": [50.0, 2.0, 100.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
 
         result = screen._format_results_preview(df)
 
@@ -570,8 +586,7 @@ class TestExportPathResolution:
             # Should raise an error (FileNotFoundError or ValueError)
             with pytest.raises((FileNotFoundError, ValueError)):
                 screen._export_to_leaderboard_parquet(
-                    str(nonexistent_log_dir),
-                    str(output_path)
+                    str(nonexistent_log_dir), str(output_path)
                 )
 
 

@@ -47,7 +47,7 @@ EDGE_CASE_PROMPTS = [
 
 
 def validate_boxed_response(response: str) -> tuple[bool, str]:
-    """Validate response contains valid \\boxed{} format.
+    r"""Validate response contains valid \boxed{} format.
 
     Returns:
         (True, extracted_content) if valid, (False, error_message) if invalid.

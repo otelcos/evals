@@ -12,7 +12,9 @@ from open_telco.cli.constants import Colors
 class ApiKeyInputScreen(BaseScreen):
     """Screen for entering API key."""
 
-    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    DEFAULT_CSS = (
+        BaseScreen.BASE_CSS
+        + f"""
     ApiKeyInputScreen {{
         padding: 0 4;
         layout: vertical;
@@ -48,6 +50,7 @@ class ApiKeyInputScreen(BaseScreen):
         border: solid {Colors.RED};
     }}
     """
+    )
 
     def __init__(self, provider_name: str) -> None:
         """Initialize with provider name."""
@@ -66,7 +69,10 @@ class ApiKeyInputScreen(BaseScreen):
                 yield Static(f"environment-variable: {env_key}", classes="env-var")
 
                 if has_existing:
-                    yield Static("(key-already-set - will-be-overwritten)", classes="current-value")
+                    yield Static(
+                        "(key-already-set - will-be-overwritten)",
+                        classes="current-value",
+                    )
 
                 yield Input(
                     placeholder="enter-your-api-key...",
@@ -94,10 +100,10 @@ class ApiKeyInputScreen(BaseScreen):
 
         # Save API key to .env
         env_key = self.provider_config["env_key"]
-        success = self.env_manager.set(env_key, api_key)
+        result = self.env_manager.set(env_key, api_key)
 
-        if not success:
-            self.notify("failed-to-save-api-key", severity="error")
+        if not result.success:
+            self.notify(result.error or "failed-to-save-api-key", severity="error")
             return
 
         self.notify(f"saved-{env_key}", severity="information")

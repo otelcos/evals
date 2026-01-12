@@ -4,6 +4,8 @@ from pathlib import Path
 
 from dotenv import dotenv_values, set_key
 
+from open_telco.cli.types import Result
+
 # Provider configuration mapping
 PROVIDERS: dict[str, dict[str, str]] = {
     "OpenAI": {
@@ -76,14 +78,18 @@ class EnvManager:
         value = values.get(key)
         return value is not None and len(value) > 0
 
-    def set(self, key: str, value: str) -> bool:
+    def set(self, key: str, value: str) -> Result[bool, str]:
         """Set a value in .env file."""
-        # Ensure file exists
-        if not self.env_path.exists():
-            self.env_path.touch()
+        try:
+            if not self.env_path.exists():
+                self.env_path.touch()
 
-        success, _, _ = set_key(str(self.env_path), key, value)
-        return success
+            success, _, _ = set_key(str(self.env_path), key, value)
+            if success:
+                return Result.ok(True)
+            return Result.err("Failed to write to .env file")
+        except OSError as e:
+            return Result.err(f"File error: {e}")
 
     def get_all(self) -> dict[str, str | None]:
         """Get all values from .env file."""

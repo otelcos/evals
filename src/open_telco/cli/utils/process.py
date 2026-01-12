@@ -1,4 +1,5 @@
 """Subprocess utilities with single-responsibility error handling."""
+
 from __future__ import annotations
 
 import os

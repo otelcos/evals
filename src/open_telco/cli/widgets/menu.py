@@ -67,8 +67,7 @@ class Menu(Vertical):
         super().__init__(**kwargs)
         # Normalize items to 3-tuples using list comprehension
         self.items: list[tuple[str, str, bool]] = [
-            (item[0], item[1], item[2] if len(item) > 2 else False)
-            for item in items
+            (item[0], item[1], item[2] if len(item) > 2 else False) for item in items
         ]
         self._cached_items: list[MenuItem] | None = None
 

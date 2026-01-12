@@ -3,6 +3,7 @@
 All magic numbers, repeated dictionaries, and configuration values
 are defined here. Import from this module instead of defining locally.
 """
+
 from __future__ import annotations
 
 

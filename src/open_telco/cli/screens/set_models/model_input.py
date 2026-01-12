@@ -12,7 +12,9 @@ from open_telco.cli.constants import Colors
 class ModelInputScreen(BaseScreen):
     """Screen for entering model name."""
 
-    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    DEFAULT_CSS = (
+        BaseScreen.BASE_CSS
+        + f"""
     ModelInputScreen {{
         padding: 0 4;
         layout: vertical;
@@ -57,6 +59,7 @@ class ModelInputScreen(BaseScreen):
         border: solid {Colors.RED};
     }}
     """
+    )
 
     def __init__(self, provider_name: str, from_api_key_screen: bool = True) -> None:
         """Initialize with provider name."""
@@ -106,10 +109,12 @@ class ModelInputScreen(BaseScreen):
             return
 
         # Save model to .env
-        success = self.env_manager.set("INSPECT_EVAL_MODEL", model_name)
+        result = self.env_manager.set("INSPECT_EVAL_MODEL", model_name)
 
-        if not success:
-            self.notify("failed-to-save-model-configuration", severity="error")
+        if not result.success:
+            self.notify(
+                result.error or "failed-to-save-model-configuration", severity="error"
+            )
             return
 
         self.notify(

@@ -1,5 +1,29 @@
+default_language_version:
+  python: python3.13
+
 repos:
-  # Secret detection - prevents accidental commit of API keys, tokens, passwords
+  # Ruff - linting and formatting (FAST - runs in milliseconds)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: detect-private-key
+      - id: check-merge-conflict
+
+  # Secret detection
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
@@ -7,8 +31,8 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         exclude: package-lock.json|uv.lock|\.ipynb$
 
-  # Detect private keys (SSH, PGP, etc.)
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+  # UV lock file sync check
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.5.24
     hooks:
-      - id: detect-private-key
+      - id: uv-lock
