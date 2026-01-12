@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from open_telco.cli.services.irt_fitter import (
     BENCHMARKS,
     IRTParameters,
@@ -153,7 +151,9 @@ class TestIRTWithRealisticData:
 
         # Verify ordering of capabilities matches general score ordering
         caps = [params.capability[e.model] for e in entries]
-        assert caps == sorted(caps, reverse=True), "Capabilities should rank-order with scores"
+        assert caps == sorted(caps, reverse=True), (
+            "Capabilities should rank-order with scores"
+        )
 
         # teleqna should be easiest (highest avg score)
         assert params.difficulty["teleqna"] < params.difficulty["telelogs"]

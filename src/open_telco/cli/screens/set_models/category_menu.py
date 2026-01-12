@@ -13,30 +13,33 @@ from open_telco.cli.widgets import Menu
 class SetModelsCategoryScreen(BaseScreen):
     """Screen for selecting model category."""
 
-    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
-    SetModelsCategoryScreen {{
+    DEFAULT_CSS = (
+        BaseScreen.BASE_CSS
+        + """
+    SetModelsCategoryScreen {
         padding: 0 4;
         layout: vertical;
-    }}
+    }
 
-    #menu-container {{
+    #menu-container {
         width: 100%;
         max-width: 50;
         height: auto;
         padding: 0 2;
-    }}
+    }
 
-    Menu {{
+    Menu {
         height: auto;
         padding: 0;
-    }}
+    }
 
-    MenuItem {{
+    MenuItem {
         height: 1;
         padding: 0;
         background: transparent;
-    }}
+    }
     """
+    )
 
     BINDINGS = BaseScreen.BINDINGS + [
         Binding("enter", "select", "Select"),

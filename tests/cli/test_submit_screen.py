@@ -30,14 +30,18 @@ class TestSubmitStageTransitions:
         # Create temp parquet
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -81,14 +85,18 @@ class TestSubmitStageTransitions:
         """Pressing q on CONFIRMING should return to SELECT_MODELS."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -131,20 +139,22 @@ class TestSubmitValidation:
     """Test validation before submission."""
 
     @pytest.mark.asyncio
-    async def test_submit_without_selection_shows_warning(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_submit_without_selection_shows_warning(self, tmp_path: Path) -> None:
         """Pressing enter with no models selected should show warning."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -183,20 +193,25 @@ class TestSubmitValidation:
         """Submitting without GITHUB_TOKEN should show error."""
         # Patch EnvManager to return None for GITHUB_TOKEN
         from open_telco.cli.config import EnvManager
+
         monkeypatch.setattr(EnvManager, "get", lambda self, key: None)
         # Also ensure no env var
         monkeypatch.delenv("GITHUB_TOKEN", raising=False)
 
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -260,9 +275,7 @@ class TestSubmitValidation:
                 assert screen.stage == Stage.ERROR
 
     @pytest.mark.asyncio
-    async def test_submit_with_empty_parquet_shows_error(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_submit_with_empty_parquet_shows_error(self, tmp_path: Path) -> None:
         """Empty results.parquet should show error."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
@@ -315,20 +328,22 @@ class TestSubmitScreenNavigation:
             # The test verifies the navigation works
 
     @pytest.mark.asyncio
-    async def test_press_q_returns_to_main_menu(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_press_q_returns_to_main_menu(self, tmp_path: Path) -> None:
         """Pressing q on submit screen should return to main menu."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -355,20 +370,22 @@ class TestSubmitScreenNavigation:
                 assert isinstance(pilot.app.screen, MainMenuScreen)
 
     @pytest.mark.asyncio
-    async def test_press_escape_returns_to_main_menu(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_press_escape_returns_to_main_menu(self, tmp_path: Path) -> None:
         """Pressing escape on submit screen should return to main menu."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -392,20 +409,22 @@ class TestSubmitScreenNavigation:
                 assert isinstance(pilot.app.screen, MainMenuScreen)
 
     @pytest.mark.asyncio
-    async def test_model_selection_with_space(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_model_selection_with_space(self, tmp_path: Path) -> None:
         """Space key should toggle model selection."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -449,16 +468,30 @@ class TestSubmitScreenNavigation:
                 assert items[0].selected is False
 
     @pytest.mark.asyncio
-    async def test_navigate_models_with_arrows(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_navigate_models_with_arrows(self, tmp_path: Path) -> None:
         """Arrow keys should move highlight between models."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([
-            {"model": "gpt-4o (Openai)", "teleqna": [83.6, 1.17, 1000.0], "telelogs": None, "telemath": None, "3gpp_tsg": None, "date": "2026-01-09"},
-            {"model": "claude-3 (Anthropic)", "teleqna": [85.0, 1.0, 1000.0], "telelogs": None, "telemath": None, "3gpp_tsg": None, "date": "2026-01-09"},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                },
+                {
+                    "model": "claude-3 (Anthropic)",
+                    "teleqna": [85.0, 1.0, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                },
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -504,16 +537,30 @@ class TestSubmitScreenNavigation:
                 assert items[1].highlighted is False
 
     @pytest.mark.asyncio
-    async def test_navigate_models_with_vim_keys(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_navigate_models_with_vim_keys(self, tmp_path: Path) -> None:
         """j/k keys should move highlight between models."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([
-            {"model": "gpt-4o (Openai)", "teleqna": [83.6, 1.17, 1000.0], "telelogs": None, "telemath": None, "3gpp_tsg": None, "date": "2026-01-09"},
-            {"model": "claude-3 (Anthropic)", "teleqna": [85.0, 1.0, 1000.0], "telelogs": None, "telemath": None, "3gpp_tsg": None, "date": "2026-01-09"},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                },
+                {
+                    "model": "claude-3 (Anthropic)",
+                    "teleqna": [85.0, 1.0, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                },
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -614,20 +661,22 @@ class TestSubmitBackgroundWorker:
     """Test background worker behavior."""
 
     @pytest.mark.asyncio
-    async def test_load_models_runs_in_background(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_load_models_runs_in_background(self, tmp_path: Path) -> None:
         """Model loading should not block UI."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         with patch.object(
@@ -667,27 +716,36 @@ class TestSubmitIntegration:
         """Complete happy path: Load -> Select -> Confirm -> Submit -> Success."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([{
-            "model": "gpt-4o (Openai)",
-            "teleqna": [83.6, 1.17, 1000.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                }
+            ]
+        )
         df.to_parquet(parquet_path)
 
         # Create trajectory file
         traj = tmp_path / "logs" / "leaderboard" / "eval_teleqna.json"
-        traj.write_text(json.dumps({
-            "eval": {"model": "openai/gpt-4o", "task": "teleqna"},
-        }))
+        traj.write_text(
+            json.dumps(
+                {
+                    "eval": {"model": "openai/gpt-4o", "task": "teleqna"},
+                }
+            )
+        )
 
-        with patch.object(
-            SubmitScreen, "_get_open_telco_dir", return_value=tmp_path
-        ), patch(
-            "open_telco.cli.screens.submit.github_service.GitHubService"
-        ) as mock_github:
+        with (
+            patch.object(SubmitScreen, "_get_open_telco_dir", return_value=tmp_path),
+            patch(
+                "open_telco.cli.screens.submit.github_service.GitHubService"
+            ) as mock_github,
+        ):
             # Mock successful PR creation
             mock_instance = MagicMock()
             mock_instance.create_submission_pr.return_value = PRResult(
@@ -741,17 +799,34 @@ class TestSubmitIntegration:
         """When multiple models selected, only first should be submitted."""
         parquet_path = tmp_path / "logs" / "leaderboard" / "results.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame([
-            {"model": "gpt-4o (Openai)", "teleqna": [83.6, 1.17, 1000.0], "telelogs": None, "telemath": None, "3gpp_tsg": None, "date": "2026-01-09"},
-            {"model": "claude-3 (Anthropic)", "teleqna": [85.0, 1.0, 1000.0], "telelogs": None, "telemath": None, "3gpp_tsg": None, "date": "2026-01-09"},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "model": "gpt-4o (Openai)",
+                    "teleqna": [83.6, 1.17, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                },
+                {
+                    "model": "claude-3 (Anthropic)",
+                    "teleqna": [85.0, 1.0, 1000.0],
+                    "telelogs": None,
+                    "telemath": None,
+                    "3gpp_tsg": None,
+                    "date": "2026-01-09",
+                },
+            ]
+        )
         df.to_parquet(parquet_path)
 
-        with patch.object(
-            SubmitScreen, "_get_open_telco_dir", return_value=tmp_path
-        ), patch(
-            "open_telco.cli.screens.submit.github_service.GitHubService"
-        ) as mock_github:
+        with (
+            patch.object(SubmitScreen, "_get_open_telco_dir", return_value=tmp_path),
+            patch(
+                "open_telco.cli.screens.submit.github_service.GitHubService"
+            ) as mock_github,
+        ):
             mock_instance = MagicMock()
             mock_instance.create_submission_pr.return_value = PRResult(
                 success=True,
@@ -830,7 +905,9 @@ class TestSubmitEdgeCases:
         self, temp_results_parquet: Path, tmp_path: Path
     ) -> None:
         """Bundle should work with no trajectory files."""
-        from open_telco.cli.screens.submit.trajectory_bundler import create_submission_bundle
+        from open_telco.cli.screens.submit.trajectory_bundler import (
+            create_submission_bundle,
+        )
 
         bundle = create_submission_bundle(
             model_name="gpt-4o",
@@ -845,24 +922,36 @@ class TestSubmitEdgeCases:
 
     def test_large_parquet_file_correct_filter(self, tmp_path: Path) -> None:
         """Large parquet with many models should correctly filter."""
-        from open_telco.cli.screens.submit.trajectory_bundler import create_submission_bundle
         import io
+
+        from open_telco.cli.screens.submit.trajectory_bundler import (
+            create_submission_bundle,
+        )
 
         parquet_path = tmp_path / "results.parquet"
         # Create parquet with many models
         models = [
-            {"model": f"model-{i} (Provider{i})", "teleqna": [i, 0.1, 100.0], "telelogs": None, "telemath": None, "3gpp_tsg": None, "date": "2026-01-09"}
+            {
+                "model": f"model-{i} (Provider{i})",
+                "teleqna": [i, 0.1, 100.0],
+                "telelogs": None,
+                "telemath": None,
+                "3gpp_tsg": None,
+                "date": "2026-01-09",
+            }
             for i in range(100)
         ]
         # Add the target model
-        models.append({
-            "model": "target-model (TargetProvider)",
-            "teleqna": [99.9, 0.1, 100.0],
-            "telelogs": None,
-            "telemath": None,
-            "3gpp_tsg": None,
-            "date": "2026-01-09",
-        })
+        models.append(
+            {
+                "model": "target-model (TargetProvider)",
+                "teleqna": [99.9, 0.1, 100.0],
+                "telelogs": None,
+                "telemath": None,
+                "3gpp_tsg": None,
+                "date": "2026-01-09",
+            }
+        )
         df = pd.DataFrame(models)
         df.to_parquet(parquet_path)
 

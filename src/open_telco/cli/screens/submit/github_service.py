@@ -9,6 +9,8 @@ from typing import Any
 
 import requests
 
+from open_telco.cli.types import Result
+
 
 @dataclass
 class PRResult:
@@ -50,27 +52,31 @@ class GitHubService:
         self._user = response.json()["login"]
         return self._user
 
-    def _check_direct_access(self) -> bool:
+    def _check_direct_access(self) -> Result[bool, str]:
         """Check if user has direct write access to the repo.
 
         Returns:
-            True if user can push directly, False if fork is needed
+            Result with True if user can push directly, False if fork is needed
         """
-        user = self._get_authenticated_user()
+        try:
+            user = self._get_authenticated_user()
 
-        # Check user's permission level on the repo
-        response = requests.get(
-            f"{self.API_BASE}/repos/{self.REPO_OWNER}/{self.REPO_NAME}/collaborators/{user}/permission",
-            headers=self.headers,
-            timeout=30,
-        )
+            # Check user's permission level on the repo
+            response = requests.get(
+                f"{self.API_BASE}/repos/{self.REPO_OWNER}/{self.REPO_NAME}/collaborators/{user}/permission",
+                headers=self.headers,
+                timeout=30,
+            )
 
-        if response.status_code == 200:
-            permission = response.json().get("permission", "")
-            # write, admin, or maintain permissions allow direct push
-            return permission in ("write", "admin", "maintain")
+            if response.status_code == 200:
+                permission = response.json().get("permission", "")
+                # write, admin, or maintain permissions allow direct push
+                has_access = permission in ("write", "admin", "maintain")
+                return Result.ok(has_access)
 
-        return False
+            return Result.ok(False)
+        except requests.RequestException as e:
+            return Result.err(f"Permission check failed: {e}")
 
     def _ensure_fork(self) -> dict[str, Any]:
         """Ensure user has a fork of the repository.
@@ -116,7 +122,9 @@ class GitHubService:
         response.raise_for_status()
         return response.json()["object"]["sha"]
 
-    def _create_branch(self, owner: str, branch_name: str, base_sha: str) -> None:
+    def _create_branch(
+        self, owner: str, branch_name: str, base_sha: str
+    ) -> Result[None, str]:
         """Create a new branch.
 
         Args:
@@ -124,34 +132,41 @@ class GitHubService:
             branch_name: Name for the new branch
             base_sha: SHA to base the branch on
         """
-        # Check if branch exists
-        response = requests.get(
-            f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/git/refs/heads/{branch_name}",
-            headers=self.headers,
-            timeout=30,
-        )
-
-        if response.status_code == 200:
-            # Branch exists, update it
-            requests.patch(
+        try:
+            # Check if branch exists
+            response = requests.get(
                 f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/git/refs/heads/{branch_name}",
                 headers=self.headers,
-                json={"sha": base_sha, "force": True},
                 timeout=30,
             )
-            return
 
-        # Create new branch
-        response = requests.post(
-            f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/git/refs",
-            headers=self.headers,
-            json={
-                "ref": f"refs/heads/{branch_name}",
-                "sha": base_sha,
-            },
-            timeout=30,
-        )
-        response.raise_for_status()
+            if response.status_code == 200:
+                # Branch exists, update it
+                patch_response = requests.patch(
+                    f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/git/refs/heads/{branch_name}",
+                    headers=self.headers,
+                    json={"sha": base_sha, "force": True},
+                    timeout=30,
+                )
+                patch_response.raise_for_status()
+                return Result.ok(None)
+
+            # Create new branch
+            response = requests.post(
+                f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/git/refs",
+                headers=self.headers,
+                json={
+                    "ref": f"refs/heads/{branch_name}",
+                    "sha": base_sha,
+                },
+                timeout=30,
+            )
+            response.raise_for_status()
+            return Result.ok(None)
+        except requests.HTTPError as e:
+            return Result.err(f"Failed to create branch: {self._extract_http_error(e)}")
+        except requests.RequestException as e:
+            return Result.err(f"Failed to create branch: {e}")
 
     def _create_or_update_file(
         self,
@@ -160,7 +175,7 @@ class GitHubService:
         content: bytes,
         branch: str,
         message: str,
-    ) -> None:
+    ) -> Result[None, str]:
         """Create or update a file in the repository.
 
         Args:
@@ -170,31 +185,39 @@ class GitHubService:
             branch: Branch to commit to
             message: Commit message
         """
-        # Check if file exists to get SHA
-        response = requests.get(
-            f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/contents/{file_path}",
-            headers=self.headers,
-            params={"ref": branch},
-            timeout=30,
-        )
+        try:
+            # Check if file exists to get SHA
+            response = requests.get(
+                f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/contents/{file_path}",
+                headers=self.headers,
+                params={"ref": branch},
+                timeout=30,
+            )
 
-        data = {
-            "message": message,
-            "content": base64.b64encode(content).decode("utf-8"),
-            "branch": branch,
-        }
+            data: dict[str, str] = {
+                "message": message,
+                "content": base64.b64encode(content).decode("utf-8"),
+                "branch": branch,
+            }
 
-        if response.status_code == 200:
-            # File exists, include SHA to update
-            data["sha"] = response.json()["sha"]
+            if response.status_code == 200:
+                # File exists, include SHA to update
+                data["sha"] = response.json()["sha"]
 
-        response = requests.put(
-            f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/contents/{file_path}",
-            headers=self.headers,
-            json=data,
-            timeout=30,
-        )
-        response.raise_for_status()
+            response = requests.put(
+                f"{self.API_BASE}/repos/{owner}/{self.REPO_NAME}/contents/{file_path}",
+                headers=self.headers,
+                json=data,
+                timeout=30,
+            )
+            response.raise_for_status()
+            return Result.ok(None)
+        except requests.HTTPError as e:
+            return Result.err(
+                f"Failed to create file {file_path}: {self._extract_http_error(e)}"
+            )
+        except requests.RequestException as e:
+            return Result.err(f"Failed to create file {file_path}: {e}")
 
     def _create_pull_request(
         self,
@@ -306,7 +329,10 @@ Automated validation will check:
         """
         try:
             # Determine if we can push directly or need to fork
-            self._use_fork = not self._check_direct_access()
+            access_result = self._check_direct_access()
+            if not access_result.success:
+                return PRResult(success=False, error=access_result.error)
+            self._use_fork = not access_result.value
 
             if self._use_fork:
                 # Fork workflow
@@ -324,7 +350,9 @@ Automated validation will check:
             safe_model = self._sanitize_branch_name(model_name)
             branch_name = f"submit/{safe_provider}_{safe_model}"
 
-            self._create_branch(repo_owner, branch_name, base_sha)
+            branch_result = self._create_branch(repo_owner, branch_name, base_sha)
+            if not branch_result.success:
+                return PRResult(success=False, error=branch_result.error)
 
             # Create file paths following flat structure:
             # model_cards/provider_model.parquet
@@ -332,23 +360,27 @@ Automated validation will check:
             file_base = f"{safe_provider}_{safe_model}"
 
             # Add parquet file to model_cards/
-            self._create_or_update_file(
+            parquet_result = self._create_or_update_file(
                 repo_owner,
                 f"model_cards/{file_base}.parquet",
                 parquet_content,
                 branch_name,
                 f"Add model card for {model_name}",
             )
+            if not parquet_result.success:
+                return PRResult(success=False, error=parquet_result.error)
 
             # Add trajectory JSON files to trajectories/provider_model/
             for filename, content in trajectory_files.items():
-                self._create_or_update_file(
+                file_result = self._create_or_update_file(
                     repo_owner,
                     f"trajectories/{file_base}/{filename}",
                     content,
                     branch_name,
                     f"Add trajectory: {filename}",
                 )
+                if not file_result.success:
+                    return PRResult(success=False, error=file_result.error)
 
             # Create pull request
             pr = self._create_pull_request(

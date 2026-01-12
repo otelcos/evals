@@ -1,4 +1,5 @@
 """Submit screen for submitting evaluation results to GSMA leaderboard."""
+
 from __future__ import annotations
 
 from enum import Enum
@@ -44,14 +45,20 @@ class ModelChecklistItem(Static):
     selected = reactive(False)
     highlighted = reactive(False)
 
-    def __init__(self, model: str, provider: str, tci: float | None, item_id: str) -> None:
+    def __init__(
+        self, model: str, provider: str, tci: float | None, item_id: str
+    ) -> None:
         super().__init__(id=item_id)
         self.model = model
         self.provider = provider
         self.tci = tci
 
     def render(self) -> str:
-        checkbox = f"[{Colors.SUCCESS}][x][/]" if self.selected else f"[{Colors.TEXT_DISABLED}][ ][/]"
+        checkbox = (
+            f"[{Colors.SUCCESS}][x][/]"
+            if self.selected
+            else f"[{Colors.TEXT_DISABLED}][ ][/]"
+        )
         style = f"bold {Colors.TEXT_PRIMARY}" if self.highlighted else Colors.TEXT_MUTED
         tci_str = f" TCI: {self.tci:.1f}" if self.tci else ""
         return f"  {checkbox} [{style}]{self.model}[/] [{Colors.TEXT_DISABLED}]({self.provider}){tci_str}[/]"
@@ -64,7 +71,9 @@ class ModelChecklistItem(Static):
 class SubmitScreen(BaseScreen):
     """Screen for submitting evaluation results."""
 
-    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    DEFAULT_CSS = (
+        BaseScreen.BASE_CSS
+        + f"""
     SubmitScreen {{
         padding: 0 4;
         layout: vertical;
@@ -108,6 +117,7 @@ class SubmitScreen(BaseScreen):
         padding: 1 0;
     }}
     """
+    )
 
     BINDINGS = BaseScreen.BINDINGS + [
         Binding("space", "toggle_selection", "Toggle", show=True),
@@ -162,22 +172,30 @@ class SubmitScreen(BaseScreen):
         log_dir = self._get_log_dir()
 
         if not log_dir.exists():
-            self.app.call_from_thread(self._transition_to_error, "no-results-found. run-evals first.")
+            self.app.call_from_thread(
+                self._transition_to_error, "no-results-found. run-evals first."
+            )
             return
 
         models = self._try_load_models(log_dir)
         if models is None:
-            self.app.call_from_thread(self._transition_to_error, "failed-to-load-models")
+            self.app.call_from_thread(
+                self._transition_to_error, "failed-to-load-models"
+            )
             return
 
         if not models:
-            self.app.call_from_thread(self._transition_to_error, "no-results-found. run-evals first.")
+            self.app.call_from_thread(
+                self._transition_to_error, "no-results-found. run-evals first."
+            )
             return
 
         self._models = models
         self.app.call_from_thread(self._show_models)
 
-    def _load_models_from_sources(self, log_dir: Path, parquet_path: Path) -> list[dict]:
+    def _load_models_from_sources(
+        self, log_dir: Path, parquet_path: Path
+    ) -> list[dict]:
         json_files = list(log_dir.glob("*.json"))
 
         # Load local entries
@@ -187,7 +205,9 @@ class SubmitScreen(BaseScreen):
         if json_files:
             local_entries, local_models_data = self._load_entries_from_json(log_dir)
         elif parquet_path.exists():
-            local_entries, local_models_data = self._load_entries_from_parquet(parquet_path)
+            local_entries, local_models_data = self._load_entries_from_parquet(
+                parquet_path
+            )
 
         if not local_entries:
             return []
@@ -200,7 +220,9 @@ class SubmitScreen(BaseScreen):
 
         # Merge: local entries take priority
         local_model_names = {e.model for e in local_entries}
-        all_entries = local_entries + [e for e in remote_entries if e.model not in local_model_names]
+        all_entries = local_entries + [
+            e for e in remote_entries if e.model not in local_model_names
+        ]
 
         # Fit IRT on full dataset and calculate TCI
         all_entries, _irt_params = calculate_all_tci(all_entries)
@@ -211,13 +233,15 @@ class SubmitScreen(BaseScreen):
         # Build model list with TCI values
         models = []
         for model_data in local_models_data.values():
-            models.append({
-                "model": model_data["model"],
-                "provider": model_data["provider"],
-                "tci": tci_lookup.get(model_data["model"]),
-                "model_str": model_data.get("model_str", model_data["model"]),
-                "raw_model": model_data.get("raw_model"),
-            })
+            models.append(
+                {
+                    "model": model_data["model"],
+                    "provider": model_data["provider"],
+                    "tci": tci_lookup.get(model_data["model"]),
+                    "model_str": model_data.get("model_str", model_data["model"]),
+                    "raw_model": model_data.get("raw_model"),
+                }
+            )
 
         return models
 
@@ -460,20 +484,28 @@ class SubmitScreen(BaseScreen):
     def _start_submission(self) -> None:
         self._github_token = self.env_manager.get("GITHUB_TOKEN")
         if not self._github_token:
-            self._transition_to_error("GITHUB_TOKEN not set. use settings to configure.")
+            self._transition_to_error(
+                "GITHUB_TOKEN not set. use settings to configure."
+            )
             return
 
         self.stage = Stage.SUBMITTING
         self.query_one("#confirm-message", Static).update("")
-        self.query_one("#status", Static).update(f"[{Colors.TEXT_MUTED}]submitting...[/]")
-        self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]please wait...[/]")
+        self.query_one("#status", Static).update(
+            f"[{Colors.TEXT_MUTED}]submitting...[/]"
+        )
+        self.query_one("#footer", Static).update(
+            f"[{Colors.TEXT_MUTED}]please wait...[/]"
+        )
 
         self._do_submission()
 
     @work(exclusive=True, thread=True)
     def _do_submission(self) -> None:
         from open_telco.cli.screens.submit.github_service import GitHubService
-        from open_telco.cli.screens.submit.trajectory_bundler import create_submission_bundle
+        from open_telco.cli.screens.submit.trajectory_bundler import (
+            create_submission_bundle,
+        )
 
         try:
             selected = self._get_selected_models()
@@ -505,14 +537,18 @@ class SubmitScreen(BaseScreen):
             )
 
             if not result.success:
-                self.app.call_from_thread(self._transition_to_error, f"PR creation failed: {result.error}")
+                self.app.call_from_thread(
+                    self._transition_to_error, f"PR creation failed: {result.error}"
+                )
                 return
 
             self._pr_url = result.pr_url
             self.app.call_from_thread(self._show_success, result.pr_url)
 
         except Exception as e:
-            self.app.call_from_thread(self._transition_to_error, f"submission failed: {e}")
+            self.app.call_from_thread(
+                self._transition_to_error, f"submission failed: {e}"
+            )
 
     def _update_progress(self, message: str) -> None:
         self.query_one("#status", Static).update(f"[{Colors.TEXT_MUTED}]{message}[/]")
@@ -520,7 +556,9 @@ class SubmitScreen(BaseScreen):
     def _show_success(self, pr_url: str) -> None:
         self.stage = Stage.SUCCESS
 
-        self.query_one("#status", Static).update(f"[{Colors.SUCCESS}]submission complete![/]")
+        self.query_one("#status", Static).update(
+            f"[{Colors.SUCCESS}]submission complete![/]"
+        )
 
         self.query_one("#confirm-message", Static).update(
             f"[{Colors.TEXT_PRIMARY}]PR: {pr_url}[/]\n\n"

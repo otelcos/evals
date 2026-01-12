@@ -1,7 +1,5 @@
 """Tests for pre-flight testing functionality."""
 
-import pytest
-
 from open_telco.cli.preflight import (
     EDGE_CASE_PROMPTS,
     EdgeCasePrompt,
@@ -13,7 +11,7 @@ from open_telco.cli.preflight import (
 
 
 class TestBoxedValidation:
-    """Test \\boxed{} format validation."""
+    r"""Test \boxed{} format validation."""
 
     def test_basic_boxed(self) -> None:
         """Test basic boxed format extraction."""
@@ -189,7 +187,11 @@ class TestEdgeCasePrompts:
         for prompt in EDGE_CASE_PROMPTS:
             assert prompt.name
             assert prompt.prompt
-            assert prompt.expected_behavior in ("boxed_format", "numeric", "pattern_match")
+            assert prompt.expected_behavior in (
+                "boxed_format",
+                "numeric",
+                "pattern_match",
+            )
 
     def test_basic_boxed_prompt_exists(self) -> None:
         """Test that basic boxed prompt exists."""
@@ -239,7 +241,9 @@ class TestStressTestEnvPath:
         """Verify stress test prompts are properly defined."""
         from open_telco.cli.preflight import STRESS_TEST_PROMPTS
 
-        assert len(STRESS_TEST_PROMPTS) >= 4, "Should have at least 4 stress test prompts"
+        assert len(STRESS_TEST_PROMPTS) >= 4, (
+            "Should have at least 4 stress test prompts"
+        )
 
         for prompt in STRESS_TEST_PROMPTS:
             assert "name" in prompt, "Each prompt should have a name"

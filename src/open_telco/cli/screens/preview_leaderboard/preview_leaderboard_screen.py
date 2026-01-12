@@ -1,4 +1,5 @@
 """Preview leaderboard screen showing rankings with user models highlighted."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -42,7 +43,9 @@ def _extract_score_tuple(val: list[float] | None) -> tuple[float | None, float |
 class PreviewLeaderboardScreen(BaseScreen):
     """Screen for previewing leaderboard with user models highlighted."""
 
-    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    DEFAULT_CSS = (
+        BaseScreen.BASE_CSS
+        + f"""
     PreviewLeaderboardScreen {{
         padding: 0 4;
         layout: vertical;
@@ -79,6 +82,7 @@ class PreviewLeaderboardScreen(BaseScreen):
         background: {Colors.HOVER};
     }}
     """
+    )
 
     BINDINGS = BaseScreen.BINDINGS + [
         Binding("r", "retry", "Retry", show=False),
@@ -116,7 +120,9 @@ class PreviewLeaderboardScreen(BaseScreen):
         remote_entries = self._try_fetch_remote()
 
         if remote_entries is None:
-            self.app.call_from_thread(self._show_error, "failed to fetch leaderboard", can_retry=True)
+            self.app.call_from_thread(
+                self._show_error, "failed to fetch leaderboard", can_retry=True
+            )
             return
 
         user_model_names = {e.model for e in user_entries}
@@ -129,10 +135,14 @@ class PreviewLeaderboardScreen(BaseScreen):
         sorted_entries = sort_by_tci(merged)
         display_entries = self._filter_display_entries(sorted_entries, user_model_names)
 
-        self.app.call_from_thread(self._show_leaderboard, display_entries, user_model_names)
+        self.app.call_from_thread(
+            self._show_leaderboard, display_entries, user_model_names
+        )
 
     def _merge_entries(
-        self, remote_entries: list[LeaderboardEntry], user_entries: list[LeaderboardEntry]
+        self,
+        remote_entries: list[LeaderboardEntry],
+        user_entries: list[LeaderboardEntry],
     ) -> list[LeaderboardEntry]:
         user_models_map = {e.model: e for e in user_entries}
         remote_model_names: set[str] = set()
@@ -286,11 +296,15 @@ class PreviewLeaderboardScreen(BaseScreen):
     def _update_status(self, user_models: set[str]) -> None:
         status = self.query_one("#status", Static)
         if not user_models:
-            status.update(f"[{Colors.TEXT_MUTED}]run evaluations to see your models ranked[/]")
+            status.update(
+                f"[{Colors.TEXT_MUTED}]run evaluations to see your models ranked[/]"
+            )
             return
         model_count = len(user_models)
         plural = "s" if model_count > 1 else ""
-        status.update(f"[{Colors.SUCCESS}]{model_count} model{plural} from your evaluations highlighted[/]")
+        status.update(
+            f"[{Colors.SUCCESS}]{model_count} model{plural} from your evaluations highlighted[/]"
+        )
 
     def _build_table(
         self, display_entries: list[tuple[int, LeaderboardEntry]], user_models: set[str]
@@ -331,7 +345,16 @@ class PreviewLeaderboardScreen(BaseScreen):
         tsg = f"{entry.tsg:.1f}" if entry.tsg is not None else "--"
 
         if not is_user:
-            return (str(rank), entry.model, entry.provider, tci, teleqna, telelogs, telemath, tsg)
+            return (
+                str(rank),
+                entry.model,
+                entry.provider,
+                tci,
+                teleqna,
+                telelogs,
+                telemath,
+                tsg,
+            )
 
         return (
             f"[{Colors.SUCCESS}]{rank}[/]",

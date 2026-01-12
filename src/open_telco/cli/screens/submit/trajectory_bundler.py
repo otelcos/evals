@@ -11,6 +11,8 @@ from pathlib import Path
 import pandas as pd
 from inspect_ai.analysis import evals_df
 
+from open_telco.cli.types import Result
+
 
 @dataclass
 class SubmissionBundle:
@@ -22,40 +24,44 @@ class SubmissionBundle:
     trajectory_files: dict[str, bytes]  # filename -> content
 
 
-def _try_load_model_parquet(parquet_path: Path | None, model_str: str) -> bytes | None:
-    """Try to load parquet data for a specific model. Returns None on failure."""
+def _try_load_model_parquet(
+    parquet_path: Path | None, model_str: str
+) -> Result[bytes, str]:
+    """Try to load parquet data for a specific model."""
     if parquet_path is None:
-        return None
+        return Result.err("No parquet path provided")
     if not parquet_path.exists():
-        return None
+        return Result.err(f"Parquet file not found: {parquet_path}")
 
-    df = _try_read_parquet(parquet_path)
-    if df is None:
-        return None
+    df_result = _try_read_parquet(parquet_path)
+    if not df_result.success:
+        return Result.err(df_result.error or "Failed to read parquet")
 
-    model_df = df[df["model"] == model_str]
+    model_df = df_result.value[df_result.value["model"] == model_str]
     if model_df.empty:
-        return None
+        return Result.err(f"Model '{model_str}' not found in parquet")
 
     buffer = io.BytesIO()
     model_df.to_parquet(buffer, index=False)
-    return buffer.getvalue()
+    return Result.ok(buffer.getvalue())
 
 
-def _try_read_parquet(path: Path) -> pd.DataFrame | None:
-    """Try to read a parquet file. Returns None on failure."""
+def _try_read_parquet(path: Path) -> Result[pd.DataFrame, str]:
+    """Try to read a parquet file."""
     try:
-        return pd.read_parquet(path)
-    except Exception:
-        return None
+        return Result.ok(pd.read_parquet(path))
+    except Exception as e:
+        return Result.err(f"Cannot read parquet {path}: {e}")
 
 
-def _try_load_json(path: Path) -> dict | None:
-    """Try to load JSON from a file. Returns None on failure."""
+def _try_load_json(path: Path) -> Result[dict, str]:
+    """Try to load JSON from a file."""
     try:
-        return json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
-        return None
+        return Result.ok(json.loads(path.read_text()))
+    except json.JSONDecodeError as e:
+        return Result.err(f"Invalid JSON in {path}: {e}")
+    except OSError as e:
+        return Result.err(f"Cannot read {path}: {e}")
 
 
 def create_submission_bundle(
@@ -83,11 +89,15 @@ def create_submission_bundle(
     model_str = f"{model_name} ({provider})"
 
     # Try parquet first if available
-    parquet_bytes = _try_load_model_parquet(results_parquet_path, model_str)
+    parquet_result = _try_load_model_parquet(results_parquet_path, model_str)
 
     # Generate parquet from JSON logs if needed
-    if parquet_bytes is None:
-        parquet_bytes = _generate_parquet_from_logs(log_dir, model_name, provider, raw_model)
+    if parquet_result.success:
+        parquet_bytes = parquet_result.value
+    else:
+        parquet_bytes = _generate_parquet_from_logs(
+            log_dir, model_name, provider, raw_model
+        )
 
     # Find trajectory JSON files for this model
     trajectory_files = _find_trajectory_files(log_dir, model_name, provider, raw_model)
@@ -165,18 +175,26 @@ def _generate_parquet_from_logs(
         elif hasattr(dataset_sample_ids, "__len__"):
             n_samples = len(dataset_sample_ids)
         else:
-            n_samples = eval_row.get("completed_samples", eval_row.get("total_samples", 0))
+            n_samples = eval_row.get(
+                "completed_samples", eval_row.get("total_samples", 0)
+            )
 
         for task_key, column_name in task_column_map.items():
             if task_key in task_name:
                 if pd.notna(score):
-                    score_val = float(score) * 100 if float(score) <= 1.0 else float(score)
+                    score_val = (
+                        float(score) * 100 if float(score) <= 1.0 else float(score)
+                    )
                     stderr_val = (
                         float(stderr) * 100
                         if pd.notna(stderr) and float(stderr) <= 1.0
                         else 0.0
                     )
-                    row[column_name] = [score_val, stderr_val, float(n_samples) if pd.notna(n_samples) else 0.0]
+                    row[column_name] = [
+                        score_val,
+                        stderr_val,
+                        float(n_samples) if pd.notna(n_samples) else 0.0,
+                    ]
                 break
 
     result_df = pd.DataFrame([row])
@@ -207,26 +225,28 @@ def _find_trajectory_files(
 
     # Look for JSON files in the log directory
     for json_file in log_dir.glob("*.json"):
-        data = _try_load_json(json_file)
-        if data is None:
+        data_result = _try_load_json(json_file)
+        if not data_result.success:
             continue
 
-        if not _trajectory_matches_model(data, model_name, provider, raw_model):
+        if not _trajectory_matches_model(
+            data_result.value, model_name, provider, raw_model
+        ):
             continue
 
-        content = _try_read_bytes(json_file)
-        if content is not None:
-            trajectory_files[json_file.name] = content
+        content_result = _try_read_bytes(json_file)
+        if content_result.success:
+            trajectory_files[json_file.name] = content_result.value
 
     return trajectory_files
 
 
-def _try_read_bytes(path: Path) -> bytes | None:
-    """Try to read file as bytes. Returns None on failure."""
+def _try_read_bytes(path: Path) -> Result[bytes, str]:
+    """Try to read file as bytes."""
     try:
-        return path.read_bytes()
-    except OSError:
-        return None
+        return Result.ok(path.read_bytes())
+    except OSError as e:
+        return Result.err(f"Cannot read {path}: {e}")
 
 
 def _trajectory_matches_model(

@@ -18,30 +18,33 @@ class ProviderSelectScreen(BaseScreen):
     # Store provider names list for lookup
     PROVIDER_NAMES = list(PROVIDERS.keys())
 
-    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
-    ProviderSelectScreen {{
+    DEFAULT_CSS = (
+        BaseScreen.BASE_CSS
+        + """
+    ProviderSelectScreen {
         padding: 0 4;
         layout: vertical;
-    }}
+    }
 
-    #menu-container {{
+    #menu-container {
         width: 100%;
         max-width: 50;
         height: auto;
         padding: 0 2;
-    }}
+    }
 
-    Menu {{
+    Menu {
         height: auto;
         padding: 0;
-    }}
+    }
 
-    MenuItem {{
+    MenuItem {
         height: 1;
         padding: 0;
         background: transparent;
-    }}
+    }
     """
+    )
 
     BINDINGS = BaseScreen.BINDINGS + [
         Binding("enter", "select", "Select"),

@@ -77,8 +77,7 @@ def _calculate_observed_variance(task_consistency: dict[str, list[bool]]) -> flo
         return 0.0
 
     inconsistent = sum(
-        1 for results in task_consistency.values()
-        if results and len(set(results)) > 1
+        1 for results in task_consistency.values() if results and len(set(results)) > 1
     )
     return inconsistent / len(task_consistency)
 
@@ -211,13 +210,21 @@ def run_find_k(
             old_log.unlink()
 
     cmd = [
-        "uv", "run", "inspect", "eval",
+        "uv",
+        "run",
+        "inspect",
+        "eval",
         *tasks,
-        "--model", model,
-        "--limit", "1",
-        "--epochs", str(epochs),
-        "--log-dir", "logs/find_k",
-        "--log-format", "json",
+        "--model",
+        model,
+        "--limit",
+        "1",
+        "--epochs",
+        str(epochs),
+        "--log-dir",
+        "logs/find_k",
+        "--log-format",
+        "json",
     ]
 
     process = start_process(cmd, cwd=open_telco_dir)

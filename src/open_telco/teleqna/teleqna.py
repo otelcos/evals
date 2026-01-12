@@ -1,5 +1,5 @@
 from inspect_ai import Task, task
-from inspect_ai.dataset import hf_dataset, Sample
+from inspect_ai.dataset import Sample, hf_dataset
 from inspect_ai.scorer import choice
 from inspect_ai.solver import multiple_choice
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
 from open_telco.cli.screens.submit.github_service import GitHubService, PRResult
@@ -15,7 +14,9 @@ class TestGitHubService:
 
     def test_create_pr_with_direct_access(self) -> None:
         """PR should be created on main repo when user has write access."""
-        with patch("open_telco.cli.screens.submit.github_service.requests") as mock_requests:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests"
+        ) as mock_requests:
             # Setup mocks
             service = GitHubService("test_token")
 
@@ -95,7 +96,9 @@ class TestGitHubService:
 
     def test_create_pr_with_fork_fallback(self) -> None:
         """PR should be created via fork when user lacks write access."""
-        with patch("open_telco.cli.screens.submit.github_service.requests") as mock_requests:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests"
+        ) as mock_requests:
             service = GitHubService("test_token")
 
             # Mock user fetch
@@ -153,7 +156,11 @@ class TestGitHubService:
                     return user_resp
                 elif "/permission" in url:
                     return perm_resp
-                elif "/repos/testuser/ot_leaderboard" in url and "/git/" not in url and "/contents/" not in url:
+                elif (
+                    "/repos/testuser/ot_leaderboard" in url
+                    and "/git/" not in url
+                    and "/contents/" not in url
+                ):
                     return fork_check
                 elif "/git/refs/heads/main" in url:
                     return ref_resp
@@ -188,7 +195,9 @@ class TestGitHubService:
 
     def test_existing_pr_returns_existing(self) -> None:
         """Should return existing PR URL if PR already exists (idempotent)."""
-        with patch("open_telco.cli.screens.submit.github_service.requests") as mock_requests:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests"
+        ) as mock_requests:
             service = GitHubService("test_token")
 
             # Mock user fetch
@@ -220,10 +229,12 @@ class TestGitHubService:
             # Mock PR check - PR already exists
             pr_check = MagicMock()
             pr_check.status_code = 200
-            pr_check.json.return_value = [{
-                "html_url": "https://github.com/gsma-research/ot_leaderboard/pull/99",
-                "number": 99,
-            }]
+            pr_check.json.return_value = [
+                {
+                    "html_url": "https://github.com/gsma-research/ot_leaderboard/pull/99",
+                    "number": 99,
+                }
+            ]
 
             def get_side_effect(url, **kwargs):
                 if "/user" in url and "/permission" not in url:
@@ -257,7 +268,9 @@ class TestGitHubService:
 
     def test_http_error_returns_pr_result_error(self) -> None:
         """HTTP errors should return PRResult with error message."""
-        with patch("open_telco.cli.screens.submit.github_service.requests.get") as mock_get:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests.get"
+        ) as mock_get:
             service = GitHubService("test_token")
 
             # Mock user fetch fails
@@ -310,7 +323,9 @@ class TestGitHubErrorHandling:
 
     def test_github_api_401_unauthorized(self) -> None:
         """Should handle 401 unauthorized error."""
-        with patch("open_telco.cli.screens.submit.github_service.requests.get") as mock_get:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests.get"
+        ) as mock_get:
             service = GitHubService("invalid_token")
 
             error_resp = MagicMock()
@@ -334,7 +349,9 @@ class TestGitHubErrorHandling:
 
     def test_github_api_403_forbidden(self) -> None:
         """Should handle 403 forbidden error."""
-        with patch("open_telco.cli.screens.submit.github_service.requests.get") as mock_get:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests.get"
+        ) as mock_get:
             service = GitHubService("test_token")
 
             # First call succeeds (user fetch)
@@ -377,8 +394,14 @@ class TestGitHubErrorHandling:
 
     def test_github_api_404_repo_not_found(self) -> None:
         """Should handle 404 not found error."""
-        with patch("open_telco.cli.screens.submit.github_service.requests.get") as mock_get, \
-             patch("open_telco.cli.screens.submit.github_service.requests.post") as mock_post:
+        with (
+            patch(
+                "open_telco.cli.screens.submit.github_service.requests.get"
+            ) as mock_get,
+            patch(
+                "open_telco.cli.screens.submit.github_service.requests.post"
+            ) as mock_post,
+        ):
             service = GitHubService("test_token")
 
             # Mock user fetch
@@ -427,7 +450,9 @@ class TestGitHubErrorHandling:
 
     def test_github_api_timeout(self) -> None:
         """Should handle request timeout."""
-        with patch("open_telco.cli.screens.submit.github_service.requests.get") as mock_get:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests.get"
+        ) as mock_get:
             service = GitHubService("test_token")
 
             mock_get.side_effect = requests.Timeout("Connection timed out")
@@ -444,7 +469,9 @@ class TestGitHubErrorHandling:
 
     def test_github_api_rate_limited(self) -> None:
         """Should handle rate limit error with message."""
-        with patch("open_telco.cli.screens.submit.github_service.requests.get") as mock_get:
+        with patch(
+            "open_telco.cli.screens.submit.github_service.requests.get"
+        ) as mock_get:
             service = GitHubService("test_token")
 
             error_resp = MagicMock()

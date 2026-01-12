@@ -1,4 +1,5 @@
 """Main menu screen for Open Telco CLI."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
@@ -18,26 +19,31 @@ if TYPE_CHECKING:
 
 def _create_set_models_screen() -> ScreenType:
     from open_telco.cli.screens.set_models import SetModelsCategoryScreen
+
     return SetModelsCategoryScreen()
 
 
 def _create_run_evals_screen() -> ScreenType:
     from open_telco.cli.screens.run_evals import RunEvalsScreen
+
     return RunEvalsScreen()
 
 
 def _create_preview_leaderboard_screen() -> ScreenType:
     from open_telco.cli.screens.preview_leaderboard import PreviewLeaderboardScreen
+
     return PreviewLeaderboardScreen()
 
 
 def _create_submit_screen() -> ScreenType:
     from open_telco.cli.screens.submit import SubmitScreen
+
     return SubmitScreen()
 
 
 def _create_settings_screen() -> ScreenType:
     from open_telco.cli.screens.settings import SettingsScreen
+
     return SettingsScreen()
 
 

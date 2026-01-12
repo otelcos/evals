@@ -1,4 +1,4 @@
-from . import telelogs, telemath, teleqna
+from open_telco import telelogs, telemath, teleqna
 
 __all__ = [
     "telelogs",
@@ -6,4 +6,3 @@ __all__ = [
     "teleqna",
     "three_gpp",
 ]
-

@@ -2,17 +2,17 @@
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
-from unittest.mock import patch
 
 from open_telco.cli.preflight.find_k import (
     FindKResult,
-    calculate_variance_reduction,
-    calculate_theoretical_variance_reduction,
-    find_optimal_k,
     _calculate_observed_variance,
     _parse_epoch_results,
+    calculate_theoretical_variance_reduction,
+    calculate_variance_reduction,
+    find_optimal_k,
 )
 
 
@@ -127,7 +127,9 @@ class TestFindOptimalK:
             "teleqna": [True, True, True, True, True],
             "three_gpp": [True, True, True, True, True],
         }
-        optimal_k, reduction, observed = find_optimal_k(task_consistency, target_reduction=50.0)
+        optimal_k, reduction, observed = find_optimal_k(
+            task_consistency, target_reduction=50.0
+        )
         assert optimal_k >= 2
         assert reduction > 0
         assert observed == 0.25  # 1 out of 4 tasks is inconsistent
@@ -158,7 +160,9 @@ class TestFindOptimalK:
         task_consistency = {
             "telelogs": [True, False, True, False, True],
         }
-        optimal_k, _, _ = find_optimal_k(task_consistency, target_reduction=99.0, max_k=3)
+        optimal_k, _, _ = find_optimal_k(
+            task_consistency, target_reduction=99.0, max_k=3
+        )
         assert optimal_k <= 3
 
     def test_full_inconsistency_returns_model_specific_reduction(self) -> None:
@@ -169,7 +173,9 @@ class TestFindOptimalK:
             "teleqna": [True, False, True, False, True],
             "three_gpp": [True, False, True, False, True],
         }
-        optimal_k, reduction, observed = find_optimal_k(task_consistency, target_reduction=50.0)
+        optimal_k, reduction, observed = find_optimal_k(
+            task_consistency, target_reduction=50.0
+        )
         assert observed == 1.0  # 100% inconsistent
         # With 100% inconsistency, K=4 gives ~50% reduction
         assert optimal_k == 4
@@ -247,8 +253,9 @@ class TestKSelectionScreen:
     @pytest.mark.asyncio
     async def test_k_selection_screen_renders(self) -> None:
         """KSelectionScreen should render with correct information."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import KSelectionScreen
         from textual.app import App
+
+        from open_telco.cli.screens.run_evals.run_evals_screen import KSelectionScreen
 
         class TestApp(App):
             def on_mount(self) -> None:
@@ -274,8 +281,9 @@ class TestKSelectionScreen:
     @pytest.mark.asyncio
     async def test_k_selection_number_keys(self) -> None:
         """Number keys should change selected K."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import KSelectionScreen
         from textual.app import App
+
+        from open_telco.cli.screens.run_evals.run_evals_screen import KSelectionScreen
 
         class TestApp(App):
             def on_mount(self) -> None:
@@ -384,8 +392,9 @@ class TestRunEvalsWithEpochs:
 
     def test_run_full_eval_includes_epochs(self) -> None:
         """The full eval command should include --epochs flag."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import RunEvalsScreen
         import inspect
+
+        from open_telco.cli.screens.run_evals.run_evals_screen import RunEvalsScreen
 
         screen = RunEvalsScreen()
         source = inspect.getsource(screen._run_full_eval.__wrapped__)
@@ -778,7 +787,11 @@ class TestFindKSyntheticData:
             (2, 0.5, 100 * (1 - (1 + 2 / 2) / 3) * 0.5),  # 16.6667
             (4, 0.5, 100 * (1 - (1 + 2 / 4) / 3) * 0.5),  # 25.0
             (4, 2 / 3, 100 * (1 - (1 + 2 / 4) / 3) * (2 / 3)),  # 33.3333 (user example)
-            (5, 2 / 3, 100 * (1 - (1 + 2 / 5) / 3) * (2 / 3)),  # 35.5556 (user example max)
+            (
+                5,
+                2 / 3,
+                100 * (1 - (1 + 2 / 5) / 3) * (2 / 3),
+            ),  # 35.5556 (user example max)
             # Edge cases
             (4, 0.25, 100 * (1 - (1 + 2 / 4) / 3) * 0.25),  # 12.5
             (4, 0.0, 0.0),  # Zero inconsistency = zero reduction
@@ -858,7 +871,9 @@ class TestFindKSyntheticData:
         synthetic_data = {
             "q1": [True, False, True, False, True],
         }
-        optimal_k, reduction, observed = find_optimal_k(synthetic_data, target_reduction=50.0)
+        optimal_k, reduction, observed = find_optimal_k(
+            synthetic_data, target_reduction=50.0
+        )
         assert observed == 1.0  # 100% inconsistent
         assert optimal_k == 4  # K=4 achieves exactly 50%
 
@@ -869,9 +884,7 @@ class TestFindKSyntheticData:
         }
         # With 100% inconsistency, normally K=4 for 50% target
         # But with max_k=3, should return 3
-        optimal_k, _, _ = find_optimal_k(
-            synthetic_data, target_reduction=50.0, max_k=3
-        )
+        optimal_k, _, _ = find_optimal_k(synthetic_data, target_reduction=50.0, max_k=3)
         assert optimal_k == 3
 
     def test_ground_truth_k_calculation(self) -> None:

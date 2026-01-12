@@ -18,7 +18,6 @@ from open_telco.cli.screens.set_models import (
     ProviderSelectScreen,
     SetModelsCategoryScreen,
 )
-from open_telco.cli.screens.welcome import WelcomeScreen
 
 # Generate test parameters for all 9 providers
 PROVIDER_TEST_PARAMS = [
