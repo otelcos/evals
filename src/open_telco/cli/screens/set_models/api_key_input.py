@@ -1,75 +1,53 @@
 """API key input screen."""
 
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Container, Vertical
-from textual.screen import Screen
 from textual.widgets import Input, Static
 
+from open_telco.cli.base_screen import BaseScreen
 from open_telco.cli.config import PROVIDERS, EnvManager
+from open_telco.cli.constants import Colors
 
 
-class ApiKeyInputScreen(Screen[None]):
+class ApiKeyInputScreen(BaseScreen):
     """Screen for entering API key."""
 
-    DEFAULT_CSS = """
-    ApiKeyInputScreen {
+    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    ApiKeyInputScreen {{
         padding: 0 4;
         layout: vertical;
-    }
+    }}
 
-    #header {
-        color: #a61d2d;
-        text-style: bold;
-        padding: 0 0 2 0;
-        height: auto;
-    }
-
-    #form-container {
+    #form-container {{
         width: 100%;
         max-width: 60;
         height: auto;
         padding: 0 2;
-    }
+    }}
 
-    .env-var {
-        color: #8b949e;
+    .env-var {{
+        color: {Colors.TEXT_MUTED};
         margin-top: 1;
         margin-bottom: 1;
-    }
+    }}
 
-    .current-value {
-        color: #f0883e;
+    .current-value {{
+        color: {Colors.WARNING};
         margin-bottom: 1;
-    }
+    }}
 
-    Input {
+    Input {{
         width: 100%;
         margin: 1 0;
-        background: #161b22;
-        border: solid #30363d;
-        color: #f0f6fc;
-    }
+        background: {Colors.BG_PRIMARY};
+        border: solid {Colors.BORDER};
+        color: {Colors.TEXT_PRIMARY};
+    }}
 
-    Input:focus {
-        border: solid #a61d2d;
-    }
-
-    #spacer {
-        height: 1fr;
-    }
-
-    #footer {
-        dock: bottom;
-        height: 1;
-        padding: 0 0;
-        color: #484f58;
-    }
+    Input:focus {{
+        border: solid {Colors.RED};
+    }}
     """
-
-    BINDINGS = [
-        Binding("escape", "go_back", "Back"),
-    ]
 
     def __init__(self, provider_name: str) -> None:
         """Initialize with provider name."""
@@ -97,7 +75,7 @@ class ApiKeyInputScreen(Screen[None]):
                 )
         yield Static("", id="spacer")
         yield Static(
-            "[#8b949e]↵[/] save [#30363d]·[/] [#8b949e]esc[/] cancel",
+            f"[{Colors.TEXT_MUTED}]↵[/] save [{Colors.BORDER}]·[/] [{Colors.TEXT_MUTED}]esc[/] cancel",
             id="footer",
             markup=True,
         )
@@ -118,15 +96,12 @@ class ApiKeyInputScreen(Screen[None]):
         env_key = self.provider_config["env_key"]
         success = self.env_manager.set(env_key, api_key)
 
-        if success:
-            self.notify(f"saved-{env_key}", severity="information")
-            # Navigate to model input screen
-            from open_telco.cli.screens.set_models.model_input import ModelInputScreen
-
-            self.app.push_screen(ModelInputScreen(self.provider_name))
-        else:
+        if not success:
             self.notify("failed-to-save-api-key", severity="error")
+            return
 
-    def action_go_back(self) -> None:
-        """Go back to provider selection."""
-        self.app.pop_screen()
+        self.notify(f"saved-{env_key}", severity="information")
+        # Navigate to model input screen
+        from open_telco.cli.screens.set_models.model_input import ModelInputScreen
+
+        self.app.push_screen(ModelInputScreen(self.provider_name))

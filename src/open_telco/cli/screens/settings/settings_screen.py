@@ -7,13 +7,13 @@ from enum import Enum
 import requests
 from textual import work
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.containers import Container, Vertical
 from textual.reactive import reactive
-from textual.screen import Screen
 from textual.widgets import Input, Static
 
+from open_telco.cli.base_screen import BaseScreen
 from open_telco.cli.config import EnvManager
+from open_telco.cli.constants import Colors
 
 
 class ValidationState(Enum):
@@ -25,99 +25,76 @@ class ValidationState(Enum):
     ERROR = "error"
 
 
-class SettingsScreen(Screen[None]):
+class SettingsScreen(BaseScreen):
     """Screen for managing settings like GITHUB_TOKEN."""
 
-    DEFAULT_CSS = """
-    SettingsScreen {
+    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    SettingsScreen {{
         padding: 0 4;
         layout: vertical;
-    }
+    }}
 
-    #header {
-        color: #a61d2d;
-        text-style: bold;
-        padding: 0 0 2 0;
-        height: auto;
-    }
-
-    #form-container {
+    #form-container {{
         width: 100%;
         max-width: 60;
         height: auto;
         padding: 0 2;
-    }
+    }}
 
-    .token-status {
-        color: #8b949e;
+    .token-status {{
+        color: {Colors.TEXT_MUTED};
         margin-bottom: 1;
-    }
+    }}
 
-    .token-status-set {
-        color: #3fb950;
-    }
+    .token-status-set {{
+        color: {Colors.SUCCESS};
+    }}
 
-    .token-status-notset {
-        color: #f85149;
-    }
+    .token-status-notset {{
+        color: {Colors.ERROR};
+    }}
 
-    .label {
-        color: #f0f6fc;
+    .label {{
+        color: {Colors.TEXT_PRIMARY};
         margin-top: 1;
         margin-bottom: 0;
-    }
+    }}
 
-    Input {
+    Input {{
         width: 100%;
         margin: 1 0;
-        background: #161b22;
-        border: solid #30363d;
-        color: #f0f6fc;
-    }
+        background: {Colors.BG_PRIMARY};
+        border: solid {Colors.BORDER};
+        color: {Colors.TEXT_PRIMARY};
+    }}
 
-    Input:focus {
-        border: solid #a61d2d;
-    }
+    Input:focus {{
+        border: solid {Colors.RED};
+    }}
 
-    .hint {
-        color: #484f58;
+    .hint {{
+        color: {Colors.TEXT_DISABLED};
         margin-top: 0;
         margin-bottom: 1;
-    }
+    }}
 
-    #validation-status {
+    #validation-status {{
         margin-top: 1;
         height: auto;
-    }
+    }}
 
-    .validation-success {
-        color: #3fb950;
-    }
+    .validation-success {{
+        color: {Colors.SUCCESS};
+    }}
 
-    .validation-error {
-        color: #f85149;
-    }
+    .validation-error {{
+        color: {Colors.ERROR};
+    }}
 
-    .validation-pending {
-        color: #8b949e;
-    }
-
-    #spacer {
-        height: 1fr;
-    }
-
-    #footer {
-        dock: bottom;
-        height: 1;
-        padding: 0 0;
-        color: #484f58;
-    }
+    .validation-pending {{
+        color: {Colors.TEXT_MUTED};
+    }}
     """
-
-    BINDINGS = [
-        Binding("q", "go_back", "Back"),
-        Binding("escape", "go_back", "Back"),
-    ]
 
     validation_state = reactive(ValidationState.IDLE)
 
@@ -129,7 +106,7 @@ class SettingsScreen(Screen[None]):
 
     def compose(self) -> ComposeResult:
         has_token = self.env_manager.has_key("GITHUB_TOKEN")
-        status_text = "[#3fb950]set[/]" if has_token else "[#f85149]not set[/]"
+        status_text = f"[{Colors.SUCCESS}]set[/]" if has_token else f"[{Colors.ERROR}]not set[/]"
 
         yield Static("settings", id="header")
         with Container(id="form-container"):
@@ -159,7 +136,7 @@ class SettingsScreen(Screen[None]):
                 yield Static("", id="validation-status")
         yield Static("", id="spacer")
         yield Static(
-            "[#8b949e]enter[/] save [#30363d]|[/] [#8b949e]q[/] back",
+            f"[{Colors.TEXT_MUTED}]enter[/] save [{Colors.BORDER}]|[/] [{Colors.TEXT_MUTED}]q[/] back",
             id="footer",
             markup=True,
         )
@@ -174,12 +151,15 @@ class SettingsScreen(Screen[None]):
 
         if state == ValidationState.IDLE:
             status_widget.update("")
-        elif state == ValidationState.VALIDATING:
-            status_widget.update("[#8b949e]validating token...[/]")
-        elif state == ValidationState.SUCCESS:
-            status_widget.update(f"[#3fb950]{self._validation_message}[/]")
-        elif state == ValidationState.ERROR:
-            status_widget.update(f"[#f85149]{self._validation_message}[/]")
+            return
+        if state == ValidationState.VALIDATING:
+            status_widget.update(f"[{Colors.TEXT_MUTED}]validating token...[/]")
+            return
+        if state == ValidationState.SUCCESS:
+            status_widget.update(f"[{Colors.SUCCESS}]{self._validation_message}[/]")
+            return
+        if state == ValidationState.ERROR:
+            status_widget.update(f"[{Colors.ERROR}]{self._validation_message}[/]")
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle token submission."""
@@ -197,96 +177,87 @@ class SettingsScreen(Screen[None]):
 
         # Update status display
         token_status = self.query_one("#token-status", Static)
-        token_status.update("GITHUB_TOKEN: [#3fb950]set[/]")
+        token_status.update(f"GITHUB_TOKEN: [{Colors.SUCCESS}]set[/]")
 
         # Validate the token
         self.validation_state = ValidationState.VALIDATING
         self._validate_token(token)
 
+    def _build_github_headers(self, token: str) -> dict[str, str]:
+        """Build headers for GitHub API requests."""
+        return {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+
+    def _try_github_request(self, url: str, headers: dict[str, str]) -> requests.Response | None:
+        """Make a GitHub API request. Returns None on network failure."""
+        try:
+            return requests.get(url, headers=headers, timeout=30)
+        except requests.Timeout:
+            self._report_validation_error("validation timed out")
+            return None
+        except requests.RequestException as e:
+            self._report_validation_error(f"network error: {e}")
+            return None
+
+    def _validate_user_token(self, headers: dict[str, str]) -> str | None:
+        """Validate token and get username. Returns None on failure."""
+        response = self._try_github_request("https://api.github.com/user", headers)
+        if response is None:
+            return None
+
+        if response.status_code == 401:
+            self._report_validation_error("invalid token (401 unauthorized)")
+            return None
+        if response.status_code != 200:
+            self._report_validation_error(f"token check failed ({response.status_code})")
+            return None
+
+        return response.json().get("login", "unknown")
+
+    def _validate_repo_access(self, headers: dict[str, str], user: str) -> bool:
+        """Validate access to the leaderboard repo. Returns False on failure."""
+        response = self._try_github_request(
+            "https://api.github.com/repos/gsma-research/ot_leaderboard", headers
+        )
+        if response is None:
+            return False
+
+        if response.status_code == 404:
+            self._report_validation_error(f"user {user}: cannot access gsma-research/ot_leaderboard")
+            return False
+        if response.status_code != 200:
+            self._report_validation_error(f"repo check failed ({response.status_code})")
+            return False
+
+        return True
+
+    def _report_validation_error(self, message: str) -> None:
+        """Report a validation error to the UI."""
+        self._validation_message = message
+        self.app.call_from_thread(self._set_validation_state, ValidationState.ERROR)
+
+    def _report_validation_success(self, user: str) -> None:
+        """Report validation success to the UI."""
+        self._validation_message = f"token valid for {user}. can create PRs via fork."
+        self.app.call_from_thread(self._set_validation_state, ValidationState.SUCCESS)
+
     @work(exclusive=True, thread=True)
     def _validate_token(self, token: str) -> None:
         """Validate the GitHub token in background."""
-        try:
-            headers = {
-                "Authorization": f"token {token}",
-                "Accept": "application/vnd.github.v3+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-            }
+        headers = self._build_github_headers(token)
 
-            # Check token is valid by getting user info
-            resp = requests.get(
-                "https://api.github.com/user",
-                headers=headers,
-                timeout=30,
-            )
+        user = self._validate_user_token(headers)
+        if user is None:
+            return
 
-            if resp.status_code == 401:
-                self._validation_message = "invalid token (401 unauthorized)"
-                self.app.call_from_thread(
-                    self._set_validation_state, ValidationState.ERROR
-                )
-                return
+        if not self._validate_repo_access(headers, user):
+            return
 
-            if resp.status_code != 200:
-                self._validation_message = f"token check failed ({resp.status_code})"
-                self.app.call_from_thread(
-                    self._set_validation_state, ValidationState.ERROR
-                )
-                return
-
-            user = resp.json().get("login", "unknown")
-
-            # Check access to the target repository
-            resp = requests.get(
-                "https://api.github.com/repos/gsma-research/ot_leaderboard",
-                headers=headers,
-                timeout=30,
-            )
-
-            if resp.status_code == 404:
-                self._validation_message = (
-                    f"user {user}: cannot access gsma-research/ot_leaderboard"
-                )
-                self.app.call_from_thread(
-                    self._set_validation_state, ValidationState.ERROR
-                )
-                return
-
-            if resp.status_code != 200:
-                self._validation_message = (
-                    f"repo check failed ({resp.status_code})"
-                )
-                self.app.call_from_thread(
-                    self._set_validation_state, ValidationState.ERROR
-                )
-                return
-
-            # Success - token is valid and can access the repo
-            self._validation_message = f"token valid for {user}. can create PRs via fork."
-            self.app.call_from_thread(
-                self._set_validation_state, ValidationState.SUCCESS
-            )
-
-        except requests.Timeout:
-            self._validation_message = "validation timed out"
-            self.app.call_from_thread(
-                self._set_validation_state, ValidationState.ERROR
-            )
-        except requests.RequestException as e:
-            self._validation_message = f"network error: {e}"
-            self.app.call_from_thread(
-                self._set_validation_state, ValidationState.ERROR
-            )
-        except Exception as e:
-            self._validation_message = f"validation error: {e}"
-            self.app.call_from_thread(
-                self._set_validation_state, ValidationState.ERROR
-            )
+        self._report_validation_success(user)
 
     def _set_validation_state(self, state: ValidationState) -> None:
         """Set validation state (called from thread)."""
         self.validation_state = state
-
-    def action_go_back(self) -> None:
-        """Go back to main menu."""
-        self.app.pop_screen()

@@ -1,9 +1,8 @@
 """Run-evals screen with checklist UI."""
-
 from __future__ import annotations
 
 import json
-import os
+import re
 import signal
 import subprocess
 from datetime import date
@@ -22,45 +21,31 @@ from textual.timer import Timer
 from textual.widgets import Static
 
 from open_telco.cli.config import EnvManager
+from open_telco.cli.constants import (
+    ALL_TASKS,
+    PROVIDER_DISPLAY_NAMES,
+    TASK_DISPLAY_NAMES,
+    TASK_TO_COLUMN,
+    Animation,
+    Colors,
+    Ports,
+    Timeouts,
+)
+from open_telco.cli.types import FindKResult, StepResult
+from open_telco.cli.utils.model_parser import parse_model_string
+from open_telco.cli.utils.process import (
+    communicate_with_timeout,
+    get_process_group,
+    kill_process_group,
+    start_process,
+)
 
-# All available tasks for full evaluation
-ALL_TASKS = [
-    "telelogs/telelogs.py",
-    "telemath/telemath.py",
-    "teleqna/teleqna.py",
-    "three_gpp/three_gpp.py",
-]
+# Re-export for test compatibility
+PROVIDER_NAMES = PROVIDER_DISPLAY_NAMES
 
-# Map task file names to GSMA column names
-TASK_TO_COLUMN = {
-    "teleqna": "teleqna",
-    "telelogs": "telelogs",
-    "telemath": "telemath",
-    "three_gpp": "3gpp_tsg",
-}
-
-# Map task paths to display names for selection UI
-TASK_DISPLAY_NAMES = {
-    "telelogs/telelogs.py": "telelogs",
-    "telemath/telemath.py": "telemath",
-    "teleqna/teleqna.py": "teleqna",
-    "three_gpp/three_gpp.py": "3gpp_tsg",
-}
-
-# Map provider prefixes to display names
-PROVIDER_NAMES = {
-    "openai": "Openai",
-    "anthropic": "Anthropic",
-    "google": "Google",
-    "mistralai": "Mistral",
-    "deepseek": "Deepseek",
-    "meta-llama": "Meta",
-    "cohere": "Cohere",
-    "together": "Together",
-    "openrouter": "Openrouter",
-    "groq": "Groq",
-    "fireworks": "Fireworks",
-}
+OPEN_TELCO_DIR = Path(__file__).parent.parent.parent.parent
+DEFAULT_K = 1
+REQUIRED_PREFLIGHT_TASKS = frozenset({"telelogs", "telemath", "teleqna", "three_gpp"})
 
 
 class Stage(Enum):
@@ -68,6 +53,7 @@ class Stage(Enum):
 
     INIT = "init"
     MINI_TEST = "mini_test"
+    FIND_K = "find_k"
     STRESS_TEST = "stress_test"
     READY = "ready"
     RUNNING_EVAL = "running_eval"
@@ -79,12 +65,13 @@ class Stage(Enum):
 class ChecklistItem(Static):
     """A checklist item with animated progress indicator."""
 
-    # Progress circle animation frames: empty → quarter → half → three-quarter → full
-    PROGRESS_FRAMES = ["○", "◔", "◑", "◕", "●"]
+    PROGRESS_FRAMES = ("○", "◔", "◑", "◕", "●")
 
-    status = reactive("pending")  # pending, running, passed, failed
-    dot_count = reactive(0)  # For animation cycle: 0-4 (circle frames)
-    score: reactive[float | None] = reactive(None)  # Optional score to display
+    status = reactive("pending")
+    dot_count = reactive(0)
+    score: reactive[float | None] = reactive(None)
+    stderr: reactive[float | None] = reactive(None)
+    variance_reduction: reactive[float | None] = reactive(None)
 
     def __init__(self, label: str, step_id: str) -> None:
         super().__init__()
@@ -92,94 +79,106 @@ class ChecklistItem(Static):
         self.step_id = step_id
 
     def render(self) -> str:
-        score_text = ""
-        if self.score is not None:
-            score_text = f"  [#8b949e]score: {self.score:.2f}[/]"
+        if self.status == "running":
+            return self._render_running()
+        return self._render_static()
 
-        if self.status == "pending":
-            return f"  [#484f58][ ][/] [#8b949e]{self.label}[/]"
-        elif self.status == "running":
-            frame = self.PROGRESS_FRAMES[self.dot_count % 5]
-            dots = "." * ((self.dot_count % 3) + 1)
-            padding = " " * (2 - (self.dot_count % 3))
-            return f"  [#f0883e][{frame}][/] [#f0f6fc]{self.label}[/]  [#f0883e]cooking{dots}{padding}[/]"
-        elif self.status == "passed":
-            return f"  [#3fb950][✓][/] [#f0f6fc]{self.label}[/]{score_text}"
-        elif self.status == "failed":
-            return f"  [#f85149][✗][/] [#f0f6fc]{self.label}[/]"
-        return f"  [#484f58][ ][/] [#8b949e]{self.label}[/]"
+    def _render_running(self) -> str:
+        frame = self.PROGRESS_FRAMES[self.dot_count % Animation.PROGRESS_CYCLE_LENGTH]
+        dots = "." * ((self.dot_count % Animation.DOT_CYCLE_LENGTH) + 1)
+        padding = " " * (2 - (self.dot_count % Animation.DOT_CYCLE_LENGTH))
+        return f"  [{Colors.RED}][{frame}][/] [{Colors.TEXT_PRIMARY}]{self.label}[/]  [{Colors.RED}]cooking{dots}{padding}[/]"
+
+    def _render_static(self) -> str:
+        score_text = self._format_score_text()
+        icon, icon_color, label_color = self._get_status_style()
+        return f"  [{icon_color}]{icon}[/] [{label_color}]{self.label}[/]{score_text}"
+
+    def _get_status_style(self) -> tuple[str, str, str]:
+        if self.status == "passed":
+            return "[✓]", Colors.SUCCESS, Colors.TEXT_PRIMARY
+        if self.status == "failed":
+            return "[✗]", Colors.ERROR, Colors.TEXT_PRIMARY
+        return "[ ]", Colors.TEXT_DISABLED, Colors.TEXT_MUTED
+
+    def _format_score_text(self) -> str:
+        if self.score is None:
+            return ""
+        if self.step_id == "find_k" and self.variance_reduction is not None:
+            return f"  [{Colors.TEXT_MUTED}]K={int(self.score)} for {self.variance_reduction:.0f}% variance reduction[/]"
+        stderr_text = f" | std: {self.stderr:.2f}" if self.stderr is not None else ""
+        return f"  [{Colors.TEXT_MUTED}]score: {self.score:.2f}{stderr_text}[/]"
 
 
 class TaskChecklistItem(Static):
-    """A selectable task checklist item with [X] checkbox in GSMA_RED."""
+    """A selectable task checklist item."""
 
-    selected = reactive(True)  # Default all selected
+    selected = reactive(True)
     highlighted = reactive(False)
 
     def __init__(self, task_name: str, display_name: str, item_id: str) -> None:
         super().__init__(id=item_id)
-        self.task_name = task_name  # e.g., "telelogs/telelogs.py"
-        self.display_name = display_name  # e.g., "telelogs"
+        self.task_name = task_name
+        self.display_name = display_name
 
     def render(self) -> str:
-        # Use GSMA_RED (#a61d2d) for the [X] checkbox
-        checkbox = "[#a61d2d][X][/]" if self.selected else "[#484f58][ ][/]"
-        if self.highlighted:
-            return f"  {checkbox} [bold #f0f6fc]{self.display_name}[/]"
-        return f"  {checkbox} [#8b949e]{self.display_name}[/]"
+        checkbox = f"[{Colors.RED}]●[/]" if self.selected else f"[{Colors.TEXT_DISABLED}]○[/]"
+        style = f"bold {Colors.TEXT_PRIMARY}" if self.highlighted else Colors.TEXT_MUTED
+        return f"  {checkbox} [{style}]{self.display_name}[/]"
 
-    def toggle(self) -> None:
+    def toggle(self) -> bool:
         self.selected = not self.selected
+        return self.selected
 
 
 class TaskSelectScreen(Screen[list[str] | None]):
     """Screen for selecting which tasks to run."""
 
-    DEFAULT_CSS = """
-    TaskSelectScreen {
+    DEFAULT_CSS = f"""
+    TaskSelectScreen {{
         padding: 0 4;
         layout: vertical;
-    }
+    }}
 
-    #header {
-        color: #a61d2d;
+    #header {{
+        color: {Colors.RED};
         text-style: bold;
         padding: 0 0 2 0;
         height: auto;
-    }
+    }}
 
-    #model-info {
-        color: #8b949e;
+    #model-info {{
+        color: {Colors.TEXT_MUTED};
         padding: 0 2 1 2;
         height: auto;
-    }
+    }}
 
-    #task-header {
-        color: #8b949e;
+    #task-header {{
+        color: {Colors.TEXT_MUTED};
         padding: 1 2 0 2;
         height: auto;
-    }
+    }}
 
-    #task-list {
+    #task-list {{
         height: auto;
         padding: 0 2;
-    }
+    }}
 
-    TaskChecklistItem {
+    TaskChecklistItem {{
         height: 1;
         padding: 0;
         background: transparent;
-    }
+    }}
 
-    #spacer {
+    #spacer {{
         height: 1fr;
-    }
+    }}
 
-    #footer {
+    #footer {{
         dock: bottom;
         height: 1;
-        color: #484f58;
-    }
+        color: {Colors.TEXT_DISABLED};
+    }}
     """
 
     BINDINGS = [
@@ -196,62 +195,58 @@ class TaskSelectScreen(Screen[list[str] | None]):
     def __init__(self, model: str) -> None:
         super().__init__()
         self.model = model
-        self._selected_index: int = 0
+        self._selected_index = 0
 
     def compose(self) -> ComposeResult:
         yield Static("run-evals", id="header")
-        yield Static(
-            f"model: [#f0f6fc]{self.model}[/]", id="model-info", markup=True
-        )
-        yield Static("[#8b949e]select tasks to run:[/]", id="task-header", markup=True)
+        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]", id="model-info", markup=True)
+        yield Static(f"[{Colors.TEXT_MUTED}]select evals to run:[/]", id="task-header", markup=True)
         with Vertical(id="task-list"):
             for i, task in enumerate(ALL_TASKS):
                 display_name = TASK_DISPLAY_NAMES.get(task, task)
                 item = TaskChecklistItem(task, display_name, f"task_{i}")
-                if i == 0:
-                    item.highlighted = True
+                item.highlighted = i == 0
                 yield item
         yield Static("", id="spacer")
         yield Static(
-            "[#8b949e]space[/] toggle [#30363d]|[/] "
-            "[#8b949e]enter[/] run-selected [#30363d]|[/] "
-            "[#8b949e]q[/] cancel",
+            f"[{Colors.TEXT_MUTED}]space[/] toggle [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]enter[/] run-selected [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]q[/] cancel",
             id="footer",
             markup=True,
         )
 
     def _get_task_items(self) -> list[TaskChecklistItem]:
-        """Get all task checklist items."""
         return list(self.query(TaskChecklistItem))
 
-    def _update_highlight(self) -> None:
-        """Update which task is highlighted."""
+    def _update_highlight(self) -> list[TaskChecklistItem]:
         items = self._get_task_items()
         for i, item in enumerate(items):
             item.highlighted = i == self._selected_index
+        return items
 
     def action_move_up(self) -> None:
-        """Move task selection up."""
-        items = self._get_task_items()
-        if items and self._selected_index > 0:
-            self._selected_index -= 1
-            self._update_highlight()
+        if self._selected_index <= 0:
+            return
+        self._selected_index -= 1
+        self._update_highlight()
 
     def action_move_down(self) -> None:
-        """Move task selection down."""
         items = self._get_task_items()
-        if items and self._selected_index < len(items) - 1:
-            self._selected_index += 1
-            self._update_highlight()
+        if self._selected_index >= len(items) - 1:
+            return
+        self._selected_index += 1
+        self._update_highlight()
 
     def action_toggle_task(self) -> None:
-        """Toggle selection of current task."""
         items = self._get_task_items()
-        if items and 0 <= self._selected_index < len(items):
-            items[self._selected_index].toggle()
+        if not items:
+            return
+        if self._selected_index < 0 or self._selected_index >= len(items):
+            return
+        items[self._selected_index].toggle()
 
     def action_confirm(self) -> None:
-        """Confirm selection and return selected tasks."""
         items = self._get_task_items()
         selected = [item.task_name for item in items if item.selected]
         if not selected:
@@ -260,71 +255,691 @@ class TaskSelectScreen(Screen[list[str] | None]):
         self.dismiss(selected)
 
     def action_cancel(self) -> None:
-        """Cancel and return None."""
+        self.dismiss(None)
+
+
+class EvalRunningScreen(Screen[None]):
+    """Screen for running selected evaluations with animated progress."""
+
+    DEFAULT_CSS = f"""
+    EvalRunningScreen {{
+        padding: 0 4;
+        layout: vertical;
+    }}
+
+    #header {{
+        color: {Colors.RED};
+        text-style: bold;
+        padding: 0 0 2 0;
+        height: auto;
+    }}
+
+    #model-info {{
+        color: {Colors.TEXT_MUTED};
+        padding: 0 2 1 2;
+        height: auto;
+    }}
+
+    #eval-header {{
+        color: {Colors.TEXT_MUTED};
+        padding: 1 2 0 2;
+        height: auto;
+    }}
+
+    #eval-list {{
+        height: auto;
+        padding: 0 2;
+    }}
+
+    ChecklistItem {{
+        height: 1;
+        padding: 0;
+        background: transparent;
+    }}
+
+    #viewer-url {{
+        color: {Colors.LINK};
+        padding: 1 2;
+        height: auto;
+    }}
+
+    #error-message {{
+        color: {Colors.ERROR};
+        padding: 1 2;
+        height: auto;
+    }}
+
+    #spacer {{
+        height: 1fr;
+    }}
+
+    #footer {{
+        dock: bottom;
+        height: 1;
+        color: {Colors.TEXT_DISABLED};
+    }}
+    """
+
+    BINDINGS = [
+        Binding("q", "cancel", "Cancel/Back"),
+        Binding("escape", "cancel", "Cancel/Back"),
+        Binding("enter", "confirm", "Confirm", show=False),
+    ]
+
+    def __init__(self, model: str, tasks: list[str], selected_k: int) -> None:
+        super().__init__()
+        self.model = model
+        self.tasks = tasks
+        self.selected_k = selected_k
+        self._animation_timer: Timer | None = None
+        self._current_process: subprocess.Popen[str] | None = None
+        self._viewer_process: subprocess.Popen[str] | None = None
+        self._cancelled = False
+        self._current_task_index = 0
+        self._completed = False
+
+    def compose(self) -> ComposeResult:
+        yield Static("run-evals", id="header")
+        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]", id="model-info", markup=True)
+        yield Static(f"[{Colors.TEXT_MUTED}]running evals:[/]", id="eval-header", markup=True)
+        with Vertical(id="eval-list"):
+            for task in self.tasks:
+                display_name = TASK_DISPLAY_NAMES.get(task, task)
+                yield ChecklistItem(display_name, task)
+        yield Static("", id="viewer-url", markup=True)
+        yield Static("", id="error-message", markup=True)
+        yield Static("", id="spacer")
+        yield Static(f"[{Colors.TEXT_MUTED}]q[/] cancel-unsafe", id="footer", markup=True)
+
+    def on_mount(self) -> None:
+        self._animation_timer = self.set_interval(Animation.INTERVAL_SECONDS, self._animate_dots)
+        self._start_viewer()
+        self._run_next_task()
+
+    def on_unmount(self) -> None:
+        self._stop_animation_timer()
+        self._kill_current_process()
+        self._stop_viewer()
+
+    def _stop_animation_timer(self) -> None:
+        if self._animation_timer is None:
+            return
+        self._animation_timer.stop()
+        self._animation_timer = None
+
+    def _kill_current_process(self) -> None:
+        if self._current_process is None:
+            return
+        self._terminate_process(self._current_process)
+        self._current_process = None
+
+    def _stop_viewer(self) -> None:
+        if self._viewer_process is None:
+            return
+        self._terminate_process(self._viewer_process)
+        self._viewer_process = None
+
+    def _terminate_process(self, process: subprocess.Popen[str]) -> None:
+        self._send_sigterm(process)
+        if not self._wait_for_process(process, timeout=2):
+            self._send_sigkill(process)
+            self._wait_for_process(process, timeout=None)
+
+    def _send_sigterm(self, process: subprocess.Popen[str]) -> None:
+        pgid = get_process_group(process.pid)
+        if pgid is None:
+            process.terminate()
+            return
+        kill_process_group(pgid, signal.SIGTERM)
+
+    def _send_sigkill(self, process: subprocess.Popen[str]) -> None:
+        pgid = get_process_group(process.pid)
+        if pgid is None:
+            process.kill()
+            return
+        kill_process_group(pgid, signal.SIGKILL)
+
+    def _wait_for_process(self, process: subprocess.Popen[str], timeout: int | None) -> bool:
+        try:
+            process.wait(timeout=timeout)
+            return True
+        except subprocess.TimeoutExpired:
+            return False
+        except (ProcessLookupError, OSError):
+            return True
+
+    def _start_viewer(self) -> bool:
+        import time
+
+        if self._viewer_process is not None:
+            return True
+
+        log_dir = OPEN_TELCO_DIR / "logs" / "leaderboard"
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        cmd = [
+            "uv", "run", "inspect", "view", "start",
+            "--log-dir", "logs/leaderboard",
+            "--host", "127.0.0.1",
+            "--port", str(Ports.INSPECT_VIEWER),
+        ]
+
+        try:
+            self._viewer_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=OPEN_TELCO_DIR,
+                start_new_session=True,
+            )
+            time.sleep(0.3)
+
+            if self._viewer_process.poll() is not None:
+                self._viewer_process = None
+                return False
+
+            self.query_one("#viewer-url", Static).update(
+                f"[{Colors.LINK}]view live at:[/] [{Colors.TEXT_PRIMARY}]http://127.0.0.1:{Ports.INSPECT_VIEWER}[/]"
+            )
+            return True
+        except Exception:
+            self._viewer_process = None
+            return False
+
+    def _animate_dots(self) -> bool:
+        animated = False
+        for item in self.query(ChecklistItem):
+            if item.status != "running":
+                continue
+            animated = True
+            item.dot_count = (item.dot_count + 1) % Animation.PROGRESS_CYCLE_LENGTH
+        return animated
+
+    def _find_checklist_item(self, step_id: str) -> ChecklistItem | None:
+        for item in self.query(ChecklistItem):
+            if item.step_id == step_id:
+                return item
+        return None
+
+    def _run_next_task(self) -> None:
+        if self._cancelled:
+            return
+        if self._current_task_index >= len(self.tasks):
+            self._on_all_tasks_complete()
+            return
+
+        task = self.tasks[self._current_task_index]
+        item = self._find_checklist_item(task)
+        if item:
+            item.status = "running"
+        self._run_single_task(task)
+
+    @work(exclusive=True, thread=True)
+    def _run_single_task(self, task: str) -> None:
+        if self._cancelled:
+            return
+
+        log_dir = OPEN_TELCO_DIR / "logs" / "leaderboard"
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        cmd = [
+            "uv", "run", "inspect", "eval",
+            task,
+            "--model", self.model,
+            "--epochs", str(self.selected_k),
+            "--log-dir", "logs/leaderboard",
+            "--log-format", "json",
+        ]
+
+        process = start_process(cmd, cwd=OPEN_TELCO_DIR)
+        if process is None:
+            self.app.call_from_thread(self._on_task_failed, task, "Failed to start process")
+            return
+
+        self._current_process = process
+        stdout, stderr, timed_out = communicate_with_timeout(process, Timeouts.FULL_EVAL)
+        self._current_process = None
+
+        if timed_out:
+            self.app.call_from_thread(self._on_task_failed, task, "Task timed out")
+            return
+        if self._cancelled:
+            return
+        if process.returncode != 0:
+            error_msg = self._extract_last_error_line(stderr or stdout)
+            self.app.call_from_thread(self._on_task_failed, task, error_msg)
+            return
+
+        score, stderr_val = self._parse_score_and_stderr(stdout + stderr)
+        self.app.call_from_thread(self._on_task_complete, task, score, stderr_val)
+
+    def _parse_score_and_stderr(self, output: str) -> tuple[float | None, float | None]:
+        score_matches = re.findall(r"accuracy[=:\s]+([0-9.]+)", output, re.IGNORECASE)
+        stderr_matches = re.findall(r"stderr[=:\s]+([0-9.]+)", output, re.IGNORECASE)
+
+        score = None
+        if score_matches:
+            score = sum(float(m) for m in score_matches) / len(score_matches)
+
+        stderr_val = None
+        if stderr_matches:
+            stderr_val = sum(float(m) for m in stderr_matches) / len(stderr_matches)
+
+        return score, stderr_val
+
+    def _extract_last_error_line(self, output: str) -> str:
+        if not output:
+            return "Eval failed"
+        lines = [line for line in output.strip().split("\n") if line.strip()]
+        if not lines:
+            return "Eval failed"
+        return lines[-1]
+
+    def _on_task_complete(self, task: str, score: float | None, stderr_val: float | None = None) -> None:
+        item = self._find_checklist_item(task)
+        if item:
+            item.status = "passed"
+            if score is not None:
+                item.score = score
+            if stderr_val is not None:
+                item.stderr = stderr_val
+        self._current_task_index += 1
+        self._run_next_task()
+
+    def _on_task_failed(self, task: str, error: str) -> None:
+        item = self._find_checklist_item(task)
+        if item:
+            item.status = "failed"
+        self.query_one("#error-message", Static).update(f"[{Colors.ERROR}]{error}[/]")
+        self._current_task_index += 1
+        self._run_next_task()
+
+    def _on_all_tasks_complete(self) -> None:
+        self._completed = True
+        self._do_export()
+
+    @work(exclusive=True, thread=True)
+    def _do_export(self) -> None:
+        try:
+            log_dir = OPEN_TELCO_DIR / "logs" / "leaderboard"
+            output_path = log_dir / "results.parquet"
+
+            if not log_dir.exists():
+                raise FileNotFoundError(f"Log directory not found: {log_dir}")
+
+            self._export_to_leaderboard_parquet(str(log_dir), str(output_path))
+            self.app.call_from_thread(
+                self._on_export_success, str(output_path.relative_to(OPEN_TELCO_DIR))
+            )
+
+        except Exception as e:
+            self.app.call_from_thread(self._on_export_error, str(e))
+
+    def _export_to_leaderboard_parquet(self, log_dir: str, output_path: str) -> pd.DataFrame:
+        df = evals_df(log_dir)
+
+        if df.empty:
+            raise ValueError(f"No eval logs found in {log_dir}")
+
+        results = []
+        for model in df["model"].unique():
+            row = self._build_model_row(df[df["model"] == model], model)
+            results.append(row)
+
+        result_df = pd.DataFrame(results)
+        column_order = ["model", "teleqna", "telelogs", "telemath", "3gpp_tsg", "date"]
+        result_df = result_df[column_order]
+
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        result_df.to_parquet(output_path, index=False)
+
+        return result_df
+
+    def _build_model_row(self, model_df: pd.DataFrame, model: str) -> dict:
+        model_info = parse_model_string(model)
+        row = {
+            "model": model_info.display_name,
+            "teleqna": None,
+            "telelogs": None,
+            "telemath": None,
+            "3gpp_tsg": None,
+            "date": date.today().isoformat(),
+        }
+
+        for _, eval_row in model_df.iterrows():
+            task_name = eval_row.get("task_name", "")
+            task_id = self._find_task_id(task_name)
+            if task_id is None:
+                continue
+
+            column_name = TASK_TO_COLUMN[task_id]
+            score_array = self._build_score_array(eval_row)
+            if score_array is not None:
+                row[column_name] = score_array
+
+        return row
+
+    def _find_task_id(self, task_name: str) -> str | None:
+        task_lower = task_name.lower()
+        for key in TASK_TO_COLUMN:
+            if key in task_lower:
+                return key
+        return None
+
+    def _build_score_array(self, eval_row: pd.Series) -> list[float] | None:
+        score = eval_row.get("score_headline_value")
+        if pd.isna(score):
+            return None
+
+        stderr = eval_row.get("score_headline_stderr")
+        n_samples = self._extract_sample_count(eval_row)
+
+        score_val = float(score) * 100 if float(score) <= 1.0 else float(score)
+        stderr_val = 0.0
+        if pd.notna(stderr):
+            stderr_val = float(stderr) * 100 if float(stderr) <= 1.0 else float(stderr)
+        n_samples_val = float(n_samples) if pd.notna(n_samples) else 0.0
+
+        return [score_val, stderr_val, n_samples_val]
+
+    def _extract_sample_count(self, eval_row: pd.Series) -> int:
+        dataset_sample_ids = eval_row.get("dataset_sample_ids", "[]")
+
+        if isinstance(dataset_sample_ids, str):
+            try:
+                sample_ids = json.loads(dataset_sample_ids)
+                if isinstance(sample_ids, list):
+                    return len(sample_ids)
+            except (json.JSONDecodeError, TypeError):
+                pass
+            return 0
+
+        if hasattr(dataset_sample_ids, "__len__"):
+            return len(dataset_sample_ids)
+
+        return eval_row.get("completed_samples", eval_row.get("total_samples", 0))
+
+    def _format_results_preview(self, df: pd.DataFrame) -> str:
+        if df.empty:
+            return "No results to display"
+
+        lines = []
+        for _, row in df.iterrows():
+            lines.append(f"model: {row['model']}")
+            lines.append("")
+            for col, display in [("teleqna", "teleqna"), ("telelogs", "telelogs"), ("telemath", "telemath"), ("3gpp_tsg", "3gpp_tsg")]:
+                lines.append(self._format_score_line(row.get(col), display))
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _format_score_line(self, val: list | None, display: str) -> str:
+        if val is None:
+            return f"  {display:10} --"
+        if not isinstance(val, list):
+            return f"  {display:10} --"
+        if len(val) < 2:
+            return f"  {display:10} --"
+        return f"  {display:10} {val[0]:6.2f} ± {val[1]:.2f}"
+
+    def _colorize_preview_line(self, line: str) -> str:
+        if line.startswith("model:"):
+            return f"[{Colors.TEXT_PRIMARY}]{line}[/]"
+        if "±" in line:
+            return f"[{Colors.TEXT_MUTED}]{line}[/]"
+        return line
+
+    def _on_export_success(self, output_path: str) -> None:
+        self.query_one("#error-message", Static).update(
+            f"[{Colors.SUCCESS}]evaluation-complete![/]\n\n"
+            f"[{Colors.TEXT_MUTED}]saved: {output_path}[/]"
+        )
+        self.query_one("#footer", Static).update(
+            f"[{Colors.TEXT_MUTED}]enter[/] done [{Colors.BORDER}]|[/] [{Colors.TEXT_MUTED}]q[/] back"
+        )
+
+    def _on_export_error(self, error: str) -> None:
+        self.query_one("#error-message", Static).update(f"[{Colors.ERROR}]Export failed: {error}[/]")
+        self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]q[/] back")
+
+    def action_cancel(self) -> None:
+        self._cancelled = True
+        self._kill_current_process()
+        self.app.pop_screen()
+
+    def action_confirm(self) -> None:
+        if not self._completed:
+            return
+        # Pop EvalRunningScreen and RunEvalsScreen to return to main menu
+        self.app.pop_screen()
+        self.app.pop_screen()
+
+
+class KSelectionScreen(Screen[int | None]):
+    """Screen for confirming or selecting K value for epochs."""
+
+    DEFAULT_CSS = f"""
+    KSelectionScreen {{
+        padding: 0 4;
+        layout: vertical;
+    }}
+
+    #header {{
+        color: {Colors.RED};
+        text-style: bold;
+        padding: 0 0 2 0;
+        height: auto;
+    }}
+
+    #model-info {{
+        color: {Colors.TEXT_MUTED};
+        padding: 0 2 1 2;
+        height: auto;
+    }}
+
+    #k-info {{
+        color: {Colors.TEXT_PRIMARY};
+        padding: 1 2;
+        height: auto;
+    }}
+
+    #variance-info {{
+        color: {Colors.SUCCESS};
+        padding: 0 2 1 2;
+        height: auto;
+    }}
+
+    #consistency-header {{
+        color: {Colors.TEXT_MUTED};
+        padding: 1 2 0 2;
+        height: auto;
+    }}
+
+    #consistency-list {{
+        height: auto;
+        padding: 0 2;
+    }}
+
+    .consistency-item {{
+        height: 1;
+        padding: 0;
+        background: transparent;
+    }}
+
+    #k-options {{
+        color: {Colors.TEXT_MUTED};
+        padding: 1 2;
+        height: auto;
+    }}
+
+    #spacer {{
+        height: 1fr;
+    }}
+
+    #footer {{
+        dock: bottom;
+        height: 1;
+        color: {Colors.TEXT_DISABLED};
+    }}
+    """
+
+    BINDINGS = [
+        Binding("q", "cancel", "Cancel/Back"),
+        Binding("escape", "cancel", "Cancel/Back"),
+        Binding("enter", "confirm", "Confirm", show=False),
+        Binding("1", "select_k('1')", "K=1", show=False),
+        Binding("2", "select_k('2')", "K=2", show=False),
+        Binding("3", "select_k('3')", "K=3", show=False),
+        Binding("4", "select_k('4')", "K=4", show=False),
+        Binding("5", "select_k('5')", "K=5", show=False),
+    ]
+
+    def __init__(
+        self,
+        model: str,
+        optimal_k: int,
+        variance_reduction: float,
+        task_consistency: dict[str, list[bool]],
+        observed_variance: float = 1.0,
+    ) -> None:
+        super().__init__()
+        self.model = model
+        self.optimal_k = optimal_k
+        self.selected_k = optimal_k
+        self.variance_reduction = variance_reduction
+        self.task_consistency = task_consistency
+        self.observed_variance = observed_variance
+
+    def compose(self) -> ComposeResult:
+        yield Static("find-k", id="header")
+        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]", id="model-info", markup=True)
+        yield Static(
+            f"[{Colors.TEXT_PRIMARY}]recommended K: [bold]{self.optimal_k}[/bold][/]",
+            id="k-info",
+            markup=True,
+        )
+        yield Static(
+            f"[{Colors.SUCCESS}]variance reduction: {self.variance_reduction:.0f}%[/]",
+            id="variance-info",
+            markup=True,
+        )
+
+        if self.task_consistency:
+            yield Static(
+                f"[{Colors.TEXT_MUTED}]task consistency (across 5 epochs):[/]",
+                id="consistency-header",
+                markup=True,
+            )
+            with Vertical(id="consistency-list"):
+                for task, results in self.task_consistency.items():
+                    yield self._render_consistency_item(task, results)
+
+        yield Static(
+            f"[{Colors.TEXT_MUTED}]press 1-5 to select different K, or enter to confirm[/]",
+            id="k-options",
+            markup=True,
+        )
+        yield Static("", id="spacer")
+        yield Static(
+            f"[{Colors.TEXT_MUTED}]enter[/] confirm [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]1-5[/] select-k [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]q[/] cancel",
+            id="footer",
+            markup=True,
+        )
+
+    def _render_consistency_item(self, task: str, results: list[bool]) -> Static:
+        consistency_str = "".join(
+            f"[{Colors.SUCCESS}]✓[/]" if r else f"[{Colors.ERROR}]✗[/]" for r in results
+        )
+        is_consistent = len(set(results)) == 1
+        status = f"[{Colors.SUCCESS}]consistent[/]" if is_consistent else f"[{Colors.WARNING}]varies[/]"
+        return Static(f"  {task:12} {consistency_str}  {status}", markup=True, classes="consistency-item")
+
+    def _update_k_display(self) -> None:
+        from open_telco.cli.preflight.find_k import calculate_variance_reduction
+
+        new_reduction = calculate_variance_reduction(self.selected_k, self.observed_variance)
+        self.query_one("#k-info", Static).update(
+            f"[{Colors.TEXT_PRIMARY}]selected K: [bold]{self.selected_k}[/bold][/]"
+        )
+        self.query_one("#variance-info", Static).update(
+            f"[{Colors.SUCCESS}]variance reduction: {new_reduction:.0f}%[/]"
+        )
+
+    def action_select_k(self, k: str) -> None:
+        self.selected_k = int(k)
+        self._update_k_display()
+
+    def action_confirm(self) -> None:
+        self.dismiss(self.selected_k)
+
+    def action_cancel(self) -> None:
         self.dismiss(None)
 
 
 class RunEvalsScreen(Screen[None]):
-    """Screen for running evaluations with 3-step checklist."""
+    """Screen for running evaluations with preflight checklist."""
 
-    DEFAULT_CSS = """
-    RunEvalsScreen {
+    DEFAULT_CSS = f"""
+    RunEvalsScreen {{
         padding: 0 4;
         layout: vertical;
-    }
+    }}
 
-    #header {
-        color: #a61d2d;
+    #header {{
+        color: {Colors.RED};
         text-style: bold;
         padding: 0 0 2 0;
         height: auto;
-    }
+    }}
 
-    #model-info {
-        color: #8b949e;
+    #model-info {{
+        color: {Colors.TEXT_MUTED};
         padding: 0 2 1 2;
         height: auto;
-    }
+    }}
 
-    #checklist-container {
+    #checklist-container {{
         width: 100%;
         max-width: 60;
         height: auto;
         padding: 1 2;
-    }
+    }}
 
-    #checklist {
+    #checklist {{
         height: auto;
         padding: 0;
-    }
+    }}
 
-    ChecklistItem {
+    ChecklistItem {{
         height: 1;
         padding: 0;
         background: transparent;
-    }
+    }}
 
-    #error-message {
-        color: #f85149;
+    #error-message {{
+        color: {Colors.ERROR};
         padding: 1 2;
         height: auto;
-    }
+    }}
 
-    #viewer-url {
-        color: #58a6ff;
+    #viewer-url {{
+        color: {Colors.LINK};
         padding: 1 2;
         height: auto;
-    }
+    }}
 
-    #spacer {
+    #spacer {{
         height: 1fr;
-    }
+    }}
 
-    #footer {
+    #footer {{
         dock: bottom;
         height: 1;
-        color: #484f58;
-    }
+        color: {Colors.TEXT_DISABLED};
+    }}
     """
 
     BINDINGS = [
@@ -339,102 +954,103 @@ class RunEvalsScreen(Screen[None]):
         super().__init__()
         self.env_manager = EnvManager()
         self.model = self.env_manager.get("INSPECT_EVAL_MODEL") or ""
-        self.tasks = ALL_TASKS
+        self.tasks = list(ALL_TASKS)
         self._animation_timer: Timer | None = None
         self._current_process: subprocess.Popen[str] | None = None
         self._viewer_process: subprocess.Popen[str] | None = None
-        self._cancelled: bool = False
-        self._full_eval_dot_count: int = 0
+        self._cancelled = False
+        self._full_eval_dot_count = 0
+        self._selected_k = DEFAULT_K
+        self._find_k_result: FindKResult | None = None
 
     def compose(self) -> ComposeResult:
         yield Static("run-evals", id="header")
         model_display = self.model if self.model else "not-configured"
-        yield Static(
-            f"model: [#f0f6fc]{model_display}[/]", id="model-info", markup=True
-        )
+        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{model_display}[/]", id="model-info", markup=True)
         with Container(id="checklist-container"):
             with Vertical(id="checklist"):
                 yield ChecklistItem("mini-open-telco", "mini_test")
+                yield ChecklistItem("find-k", "find_k")
                 yield ChecklistItem("stress-testing", "stress_test")
                 yield ChecklistItem("go", "ready")
         yield Static("", id="error-message", markup=True)
         yield Static("", id="viewer-url", markup=True)
         yield Static("", id="spacer")
-        yield Static("[#8b949e]q[/] cancel", id="footer", markup=True)
+        yield Static(f"[{Colors.TEXT_MUTED}]q[/] cancel", id="footer", markup=True)
 
     def on_mount(self) -> None:
-        """Start the preflight checks."""
-        # Start animation timer
-        self._animation_timer = self.set_interval(0.6, self._animate_dots)
-
+        self._animation_timer = self.set_interval(Animation.INTERVAL_SECONDS, self._animate_dots)
         if not self.model:
-            self._show_error("no-model-configured. use set-model first.")
+            self._transition_to_error("no-model-configured. use set-model first.")
             return
-
-        # Start the step sequence
         self._run_steps()
 
     def on_unmount(self) -> None:
-        """Clean up when screen is removed."""
-        if self._animation_timer:
-            self._animation_timer.stop()
-            self._animation_timer = None
-        # Kill any running subprocess
+        self._stop_animation_timer()
         self._kill_current_process()
-        # Stop the viewer subprocess
         self._stop_viewer()
 
+    def _stop_animation_timer(self) -> None:
+        if self._animation_timer is None:
+            return
+        self._animation_timer.stop()
+        self._animation_timer = None
+
     def _kill_current_process(self) -> None:
-        """Terminate and kill any running subprocess and its process group."""
-        if self._current_process is not None:
-            try:
-                # Try to kill the entire process group first
-                try:
-                    pgid = os.getpgid(self._current_process.pid)
-                    os.killpg(pgid, signal.SIGTERM)
-                except (ProcessLookupError, OSError):
-                    # Process group doesn't exist or already dead, try direct terminate
-                    self._current_process.terminate()
+        if self._current_process is None:
+            return
+        self._terminate_process(self._current_process)
+        self._current_process = None
 
-                self._current_process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                # Process didn't respond to SIGTERM, escalate to SIGKILL
-                try:
-                    pgid = os.getpgid(self._current_process.pid)
-                    os.killpg(pgid, signal.SIGKILL)
-                except (ProcessLookupError, OSError):
-                    self._current_process.kill()
-                self._current_process.wait()
-            except Exception:
-                pass  # Process may have already exited
-            finally:
-                self._current_process = None
+    def _stop_viewer(self) -> None:
+        if self._viewer_process is None:
+            return
+        self._terminate_process(self._viewer_process)
+        self._viewer_process = None
 
-    def _start_viewer(self) -> None:
-        """Start inspect view subprocess for live monitoring."""
+    def _terminate_process(self, process: subprocess.Popen[str]) -> None:
+        self._send_sigterm(process)
+        if not self._wait_for_process(process, timeout=2):
+            self._send_sigkill(process)
+            self._wait_for_process(process, timeout=None)
+
+    def _send_sigterm(self, process: subprocess.Popen[str]) -> None:
+        pgid = get_process_group(process.pid)
+        if pgid is None:
+            process.terminate()
+            return
+        kill_process_group(pgid, signal.SIGTERM)
+
+    def _send_sigkill(self, process: subprocess.Popen[str]) -> None:
+        pgid = get_process_group(process.pid)
+        if pgid is None:
+            process.kill()
+            return
+        kill_process_group(pgid, signal.SIGKILL)
+
+    def _wait_for_process(self, process: subprocess.Popen[str], timeout: int | None) -> bool:
+        try:
+            process.wait(timeout=timeout)
+            return True
+        except subprocess.TimeoutExpired:
+            return False
+        except (ProcessLookupError, OSError):
+            return True
+
+    def _start_viewer(self) -> bool:
         import time
 
         if self._viewer_process is not None:
-            return  # Already running
+            return True
 
-        open_telco_dir = self._get_open_telco_dir()
-
-        # Ensure log directory exists
-        log_dir = open_telco_dir / "logs" / "leaderboard"
+        log_dir = OPEN_TELCO_DIR / "logs" / "leaderboard"
         log_dir.mkdir(parents=True, exist_ok=True)
 
         cmd = [
-            "uv",
-            "run",
-            "inspect",
-            "view",
-            "start",
-            "--log-dir",
-            "logs/leaderboard",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "7575",
+            "uv", "run", "inspect", "view", "start",
+            "--log-dir", "logs/leaderboard",
+            "--host", "127.0.0.1",
+            "--port", str(Ports.INSPECT_VIEWER),
         ]
 
         try:
@@ -443,545 +1059,499 @@ class RunEvalsScreen(Screen[None]):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                cwd=open_telco_dir,
+                cwd=OPEN_TELCO_DIR,
                 start_new_session=True,
             )
-
-            # Brief delay to check if process started successfully
             time.sleep(0.3)
 
-            # Check if process exited immediately (indicates failure)
             if self._viewer_process.poll() is not None:
-                # Process already exited - read error
                 _, stderr = self._viewer_process.communicate()
                 error_msg = stderr.strip().split("\n")[-1] if stderr else "Unknown error"
                 self._viewer_process = None
-                self.query_one("#viewer-url", Static).update(
-                    f"[#f85149]viewer failed: {error_msg}[/]"
-                )
-                return
+                self._update_viewer_url_error(error_msg)
+                return False
 
-            # Update UI with viewer URL
-            self.query_one("#viewer-url", Static).update(
-                "[#58a6ff]view live at:[/] [#f0f6fc]http://127.0.0.1:7575[/]"
-            )
+            self._update_viewer_url_success()
+            return True
         except Exception as e:
             self._viewer_process = None
-            self.query_one("#viewer-url", Static).update(
-                f"[#f85149]viewer failed: {e}[/]"
-            )
+            self._update_viewer_url_error(str(e))
+            return False
 
-    def _stop_viewer(self) -> None:
-        """Stop the inspect view subprocess."""
-        if self._viewer_process is not None:
-            try:
-                try:
-                    pgid = os.getpgid(self._viewer_process.pid)
-                    os.killpg(pgid, signal.SIGTERM)
-                except (ProcessLookupError, OSError):
-                    self._viewer_process.terminate()
+    def _update_viewer_url_success(self) -> None:
+        self.query_one("#viewer-url", Static).update(
+            f"[{Colors.LINK}]view live at:[/] [{Colors.TEXT_PRIMARY}]http://127.0.0.1:{Ports.INSPECT_VIEWER}[/]"
+        )
 
-                try:
-                    self._viewer_process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    try:
-                        pgid = os.getpgid(self._viewer_process.pid)
-                        os.killpg(pgid, signal.SIGKILL)
-                    except (ProcessLookupError, OSError):
-                        self._viewer_process.kill()
-                    self._viewer_process.wait()
-            except (ProcessLookupError, OSError):
-                pass
-            finally:
-                self._viewer_process = None
+    def _update_viewer_url_error(self, error: str) -> None:
+        self.query_one("#viewer-url", Static).update(f"[{Colors.ERROR}]viewer failed: {error}[/]")
+
+    def _animate_dots(self) -> bool:
+        has_running = self._animate_checklist_items()
+        has_running = self._animate_full_eval_status() or has_running
+        self._pause_timer_if_idle(has_running)
+        return has_running
+
+    def _animate_checklist_items(self) -> bool:
+        animated = False
+        for item in self.query(ChecklistItem):
+            if item.status != "running":
+                continue
+            animated = True
+            item.dot_count = (item.dot_count + 1) % Animation.PROGRESS_CYCLE_LENGTH
+        return animated
+
+    def _animate_full_eval_status(self) -> bool:
+        if self.stage != Stage.RUNNING_EVAL:
+            return False
+        self._full_eval_dot_count = (self._full_eval_dot_count + 1) % Animation.DOT_CYCLE_LENGTH
+        self.query_one("#error-message", Static).update(self._render_full_eval_status())
+        return True
+
+    def _pause_timer_if_idle(self, has_running: bool) -> None:
+        if has_running:
+            return
+        if self._animation_timer is None:
+            return
+        self._animation_timer.pause()
+
+    def _resume_timer(self) -> None:
+        if self._animation_timer is None:
+            return
+        self._animation_timer.resume()
 
     def _render_full_eval_status(self) -> str:
-        """Render the animated running-full-evaluation status text."""
-        dots = "." * ((self._full_eval_dot_count % 3) + 1)
-        padding = " " * (3 - len(dots))
-        return f"[#8b949e]running-full-evaluation{dots}{padding}[/]"
+        dots = "." * ((self._full_eval_dot_count % Animation.DOT_CYCLE_LENGTH) + 1)
+        padding = " " * (Animation.DOT_CYCLE_LENGTH - len(dots))
+        return f"[{Colors.TEXT_MUTED}]running-full-evaluation{dots}{padding}[/]"
 
-    def _animate_dots(self) -> None:
-        """Animate the cooking... dots for running items and full eval status."""
-        has_running = False
-        for item in self.query(ChecklistItem):
-            if item.status == "running":
-                has_running = True
-                item.dot_count = (item.dot_count + 1) % 5
-
-        # Animate full eval status when in RUNNING_EVAL stage
-        if self.stage == Stage.RUNNING_EVAL:
-            has_running = True
-            self._full_eval_dot_count = (self._full_eval_dot_count + 1) % 3
-            self.query_one("#error-message", Static).update(
-                self._render_full_eval_status()
-            )
-
-        # Pause timer when nothing is animating to save CPU
-        if not has_running and self._animation_timer:
-            self._animation_timer.pause()
-
-    def _set_step_status(self, step_id: str, status: str) -> None:
-        """Set the status of a checklist step."""
+    def _find_checklist_item(self, step_id: str) -> ChecklistItem | None:
         for item in self.query(ChecklistItem):
             if item.step_id == step_id:
-                item.status = status
-                # Resume timer when a step starts running
-                if status == "running" and self._animation_timer:
-                    self._animation_timer.resume()
-                break
+                return item
+        return None
 
-    def _set_step_score(self, step_id: str, score: float) -> None:
-        """Set the score for a checklist step."""
-        for item in self.query(ChecklistItem):
-            if item.step_id == step_id:
-                item.score = score
-                break
+    def _set_step_status(self, step_id: str, status: str) -> bool:
+        item = self._find_checklist_item(step_id)
+        if item is None:
+            return False
+        item.status = status
+        if status == "running":
+            self._resume_timer()
+        return True
 
-    def _show_error(self, message: str) -> None:
-        """Show error message and update UI."""
+    def _set_step_score(self, step_id: str, score: float) -> bool:
+        item = self._find_checklist_item(step_id)
+        if item is None:
+            return False
+        item.score = score
+        return True
+
+    def _set_find_k_score(self, optimal_k: int, variance_reduction: float) -> bool:
+        item = self._find_checklist_item("find_k")
+        if item is None:
+            return False
+        item.score = float(optimal_k)
+        item.variance_reduction = variance_reduction
+        return True
+
+    def _transition_to_error(self, message: str) -> None:
         self.stage = Stage.ERROR
-        self.query_one("#error-message", Static).update(f"[#f85149]{message}[/]")
-        self.query_one("#footer", Static).update("[#8b949e]q[/] back")
+        self.query_one("#error-message", Static).update(f"[{Colors.ERROR}]{message}[/]")
+        self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]q[/] back")
 
-    def _show_ready(self) -> None:
-        """Show ready state - push task selection screen."""
+    def _transition_to_ready(self) -> None:
         self.stage = Stage.READY
         self.app.push_screen(TaskSelectScreen(self.model), self._on_task_selection)
 
     def _on_task_selection(self, selected: list[str] | None) -> None:
-        """Handle task selection result from TaskSelectScreen."""
         if selected is None:
-            # User cancelled - go back to main menu
             self.app.pop_screen()
             return
         self.tasks = selected
-        self._start_full_eval()
+        self.app.push_screen(EvalRunningScreen(self.model, selected, self._selected_k))
+
+    def _show_k_selection(self, find_k_result: FindKResult) -> None:
+        self.app.push_screen(
+            KSelectionScreen(
+                model=self.model,
+                optimal_k=find_k_result.optimal_k,
+                variance_reduction=find_k_result.variance_reduction,
+                task_consistency=find_k_result.task_consistency or {},
+                observed_variance=find_k_result.observed_variance,
+            ),
+            self._on_k_selection,
+        )
+
+    def _on_k_selection(self, selected_k: int | None) -> None:
+        if selected_k is None:
+            self.app.pop_screen()
+            return
+        self._selected_k = selected_k
+        self._continue_after_k_selection()
+
+    @work(exclusive=True, thread=True)
+    def _continue_after_k_selection(self) -> None:
+        if self._cancelled:
+            return
+        self.app.call_from_thread(self._set_step_status, "stress_test", "running")
+        self.app.call_from_thread(self._set_stage, Stage.STRESS_TEST)
+
+        result = self._run_stress_test()
+        if self._cancelled:
+            return
+        if not result.passed:
+            self.app.call_from_thread(self._set_step_status, "stress_test", "failed")
+            self.app.call_from_thread(self._transition_to_error, result.error or "Stress test failed")
+            return
+
+        self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
+        if self._cancelled:
+            return
+
+        self.app.call_from_thread(self._set_step_status, "ready", "passed")
+        self.app.call_from_thread(self._transition_to_ready)
 
     def _check_preflight_passed(self) -> bool:
-        """Check if model has already passed mini-open-telco preflights.
-
-        Scans logs/preflight/*.json for files where:
-        - eval.model matches current INSPECT_EVAL_MODEL
-        - status == "success"
-        - All 4 tasks have passing logs
-
-        Returns:
-            True if all 4 task preflights passed for this model
-        """
-        open_telco_dir = self._get_open_telco_dir()
-        preflight_dir = open_telco_dir / "logs" / "preflight"
-
+        preflight_dir = OPEN_TELCO_DIR / "logs" / "preflight"
         if not preflight_dir.exists():
             return False
 
-        # Required tasks to find
-        required_tasks = {"telelogs", "telemath", "teleqna", "three_gpp"}
         found_tasks: set[str] = set()
-
         for json_file in preflight_dir.glob("*.json"):
-            try:
-                with open(json_file, "r") as f:
-                    data = json.load(f)
+            task = self._check_preflight_file(json_file)
+            if task is not None:
+                found_tasks.add(task)
 
-                # Check if this log matches our model and status is success
-                if data.get("status") != "success":
-                    continue
+        return found_tasks == REQUIRED_PREFLIGHT_TASKS
 
-                eval_info = data.get("eval", {})
-                log_model = eval_info.get("model", "")
+    def _check_preflight_file(self, json_file: Path) -> str | None:
+        try:
+            with open(json_file, "r") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
 
-                if log_model != self.model:
-                    continue
+        if data.get("status") != "success":
+            return None
 
-                # Extract task name from task field
-                task_name = eval_info.get("task", "")
-                if task_name in required_tasks:
-                    found_tasks.add(task_name)
+        eval_info = data.get("eval", {})
+        if eval_info.get("model", "") != self.model:
+            return None
 
-            except (json.JSONDecodeError, OSError):
-                continue
-
-        return found_tasks == required_tasks
+        task_name = eval_info.get("task", "")
+        if task_name in REQUIRED_PREFLIGHT_TASKS:
+            return task_name
+        return None
 
     @work(exclusive=True, thread=True)
     def _run_steps(self) -> None:
-        """Run all preflight steps sequentially."""
-        try:
-            if self._cancelled:
-                return
+        if self._cancelled:
+            return
 
-            # Check if preflights already passed for this model
-            preflight_passed = self._check_preflight_passed()
+        if self._check_preflight_passed():
+            self._mark_all_steps_passed()
+            self.app.call_from_thread(self._transition_to_ready)
+            return
 
-            if preflight_passed:
-                # Skip mini-test and stress-test, mark them as passed
-                self.app.call_from_thread(self._set_step_status, "mini_test", "passed")
-                self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
-                self.app.call_from_thread(self._set_step_status, "ready", "passed")
-                self.app.call_from_thread(self._show_ready)
-                return
+        mini_result = self._execute_mini_test()
+        if not mini_result:
+            return
 
-            # Step 1: Mini Open Telco test
-            self.app.call_from_thread(self._set_step_status, "mini_test", "running")
-            self.app.call_from_thread(self._set_stage, Stage.MINI_TEST)
+        find_k_result = self._execute_find_k()
+        if find_k_result is None:
+            return
 
-            result = self._run_mini_test()
-            if self._cancelled:
-                return
-            if not result["passed"]:
-                self.app.call_from_thread(self._set_step_status, "mini_test", "failed")
-                self.app.call_from_thread(self._show_error, result["error"])
-                return
+        self.app.call_from_thread(self._show_k_selection, find_k_result)
 
-            self.app.call_from_thread(self._set_step_status, "mini_test", "passed")
-            if result.get("score") is not None:
-                self.app.call_from_thread(self._set_step_score, "mini_test", result["score"])
+    def _mark_all_steps_passed(self) -> None:
+        self.app.call_from_thread(self._set_step_status, "mini_test", "passed")
+        self.app.call_from_thread(self._set_step_status, "find_k", "passed")
+        self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
+        self.app.call_from_thread(self._set_step_status, "ready", "passed")
 
-            if self._cancelled:
-                return
+    def _execute_mini_test(self) -> bool:
+        self.app.call_from_thread(self._set_step_status, "mini_test", "running")
+        self.app.call_from_thread(self._set_stage, Stage.MINI_TEST)
 
-            # Step 2: Stress-testing
-            self.app.call_from_thread(self._set_step_status, "stress_test", "running")
-            self.app.call_from_thread(self._set_stage, Stage.STRESS_TEST)
+        result = self._run_mini_test()
+        if self._cancelled:
+            return False
+        if not result.passed:
+            self.app.call_from_thread(self._set_step_status, "mini_test", "failed")
+            self.app.call_from_thread(self._transition_to_error, result.error or "Mini test failed")
+            return False
 
-            result = self._run_stress_test()
-            if self._cancelled:
-                return
-            if not result["passed"]:
-                self.app.call_from_thread(self._set_step_status, "stress_test", "failed")
-                self.app.call_from_thread(self._show_error, result["error"])
-                return
+        self.app.call_from_thread(self._set_step_status, "mini_test", "passed")
+        if result.score is not None:
+            self.app.call_from_thread(self._set_step_score, "mini_test", result.score)
+        return True
 
-            self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
+    def _execute_find_k(self) -> FindKResult | None:
+        if self._cancelled:
+            return None
 
-            if self._cancelled:
-                return
+        self.app.call_from_thread(self._set_step_status, "find_k", "running")
+        self.app.call_from_thread(self._set_stage, Stage.FIND_K)
 
-            # Step 3: Ready for full benchmark
-            self.app.call_from_thread(self._set_step_status, "ready", "passed")
-            self.app.call_from_thread(self._show_ready)
-        except Exception:
-            # App may have been closed while worker was running
-            pass
+        find_k_result = self._run_find_k()
+        if self._cancelled:
+            return None
+        if not find_k_result.passed:
+            self.app.call_from_thread(self._set_step_status, "find_k", "failed")
+            self.app.call_from_thread(self._transition_to_error, find_k_result.error or "Find-K failed")
+            return None
+
+        self.app.call_from_thread(self._set_step_status, "find_k", "passed")
+        self.app.call_from_thread(
+            self._set_find_k_score,
+            find_k_result.optimal_k,
+            find_k_result.variance_reduction,
+        )
+        self._find_k_result = find_k_result
+        return find_k_result
 
     def _set_stage(self, stage: Stage) -> None:
-        """Set the current stage."""
         self.stage = stage
 
-    def _run_mini_test(self) -> dict:
-        """Run mini Open Telco test via subprocess with --limit 1."""
+    def _run_mini_test(self) -> StepResult:
         if self._cancelled:
-            return {"passed": False, "error": "cancelled"}
-
-        # Find src/open_telco directory (where tasks are located)
-        # Path: cli/screens/run_evals/run_evals_screen.py -> src/open_telco
-        open_telco_dir = Path(__file__).parent.parent.parent.parent
+            return StepResult(passed=False, error="cancelled")
 
         cmd = [
-            "uv",
-            "run",
-            "inspect",
-            "eval",
-            *self.tasks,  # All 4 tasks
-            "--model",
-            self.model,
-            "--limit",
-            "1",
-            "--log-dir",
-            "logs/preflight",
-            "--log-format",
-            "json",
+            "uv", "run", "inspect", "eval",
+            *self.tasks,
+            "--model", self.model,
+            "--limit", "1",
+            "--log-dir", "logs/preflight",
+            "--log-format", "json",
         ]
 
-        try:
-            self._current_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=open_telco_dir,
-                start_new_session=True,  # Create new process group for clean termination
-            )
+        process = start_process(cmd, cwd=OPEN_TELCO_DIR)
+        if process is None:
+            return StepResult(passed=False, error="Failed to start process")
 
-            try:
-                stdout, stderr = self._current_process.communicate(timeout=120)
-                returncode = self._current_process.returncode
-            except subprocess.TimeoutExpired:
-                self._current_process.kill()
-                self._current_process.wait()
-                return {"passed": False, "error": "Mini test timed out after 120s"}
-            finally:
-                self._current_process = None
+        self._current_process = process
+        stdout, stderr, timed_out = communicate_with_timeout(process, Timeouts.MINI_TEST)
+        self._current_process = None
 
-            if self._cancelled:
-                return {"passed": False, "error": "cancelled"}
+        if timed_out:
+            return StepResult(passed=False, error="Mini test timed out after 5 minutes")
+        if self._cancelled:
+            return StepResult(passed=False, error="cancelled")
+        if process.returncode != 0:
+            return StepResult(passed=False, error=self._extract_last_error_line(stderr or stdout))
 
-            if returncode == 0:
-                # Parse score from output
-                score = self._parse_score(stdout + stderr)
-                return {"passed": True, "score": score}
-            else:
-                error_output = stderr or stdout or "Eval failed"
-                # Get last meaningful line for error display
-                error_lines = [
-                    line for line in error_output.strip().split("\n") if line.strip()
-                ]
-                error_msg = error_lines[-1] if error_lines else "Eval failed"
-                return {"passed": False, "error": error_msg}
+        return StepResult(passed=True, score=self._parse_score(stdout + stderr))
 
-        except Exception as e:
-            self._current_process = None
-            return {"passed": False, "error": str(e)}
+    def _extract_last_error_line(self, output: str) -> str:
+        if not output:
+            return "Eval failed"
+        lines = [line for line in output.strip().split("\n") if line.strip()]
+        if not lines:
+            return "Eval failed"
+        return lines[-1]
 
     def _parse_score(self, output: str) -> float | None:
-        """Parse average accuracy score from inspect output."""
-        import re
-
-        # Match patterns like "accuracy: 0.85" or "accuracy=0.85" or "accuracy 0.85"
         matches = re.findall(r"accuracy[=:\s]+([0-9.]+)", output, re.IGNORECASE)
-        if matches:
-            return sum(float(m) for m in matches) / len(matches)
-        return None
+        if not matches:
+            return None
+        return sum(float(m) for m in matches) / len(matches)
 
-    def _run_stress_test(self) -> dict:
-        """Run stress tests with edge case prompts."""
+    def _run_stress_test(self) -> StepResult:
         from open_telco.cli.preflight.stress_test import run_stress_tests_sync
 
         try:
             result = run_stress_tests_sync(self.model)
-
             if result.passed:
-                return {"passed": True}
-            else:
-                return {"passed": False, "error": result.error or "Stress test failed"}
+                return StepResult(passed=True)
+            return StepResult(passed=False, error=result.error or "Stress test failed")
         except Exception as e:
-            return {"passed": False, "error": str(e)}
+            return StepResult(passed=False, error=str(e))
+
+    def _run_find_k(self) -> FindKResult:
+        from open_telco.cli.preflight.find_k import run_find_k_sync
+
+        if self._cancelled:
+            return FindKResult(passed=False, error="cancelled")
+
+        try:
+            result = run_find_k_sync(
+                model=self.model,
+                epochs=5,
+                tasks=self.tasks,
+                open_telco_dir=OPEN_TELCO_DIR,
+                timeout=Timeouts.FIND_K,
+            )
+
+            return FindKResult(
+                passed=True,
+                optimal_k=result.optimal_k,
+                variance_reduction=result.variance_reduction_pct,
+                task_consistency=result.task_consistency,
+                observed_variance=result.observed_variance,
+                error=result.error,
+            )
+        except Exception as e:
+            return FindKResult(passed=False, error=str(e))
 
     def _start_full_eval(self) -> None:
-        """Start the full evaluation."""
         self.stage = Stage.RUNNING_EVAL
 
-        # Ensure log directory exists for viewer
-        open_telco_dir = self._get_open_telco_dir()
-        log_dir = open_telco_dir / "logs" / "leaderboard"
+        log_dir = OPEN_TELCO_DIR / "logs" / "leaderboard"
         log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Start viewer immediately so URL is visible
         self._start_viewer()
-
-        # Reset animation counter and resume timer for full eval animation
         self._full_eval_dot_count = 0
-        if self._animation_timer:
-            self._animation_timer.resume()
+        self._resume_timer()
 
-        self.query_one("#error-message", Static).update(
-            self._render_full_eval_status()
-        )
-        self.query_one("#footer", Static).update("[#8b949e]q[/] cancel-unsafe")
+        self.query_one("#error-message", Static).update(self._render_full_eval_status())
+        self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]q[/] cancel-unsafe")
         self._run_full_eval()
-
-    def _get_open_telco_dir(self) -> Path:
-        """Get the open_telco source directory path."""
-        return Path(__file__).parent.parent.parent.parent
 
     @work(exclusive=True, thread=True)
     def _run_full_eval(self) -> None:
-        """Run full evaluation via subprocess in background."""
         if self._cancelled:
             return
 
-        open_telco_dir = self._get_open_telco_dir()
-
         cmd = [
-            "uv",
-            "run",
-            "inspect",
-            "eval",
+            "uv", "run", "inspect", "eval",
             *self.tasks,
-            "--model",
-            self.model,
-            "--log-dir",
-            "logs/leaderboard",
-            "--log-format",
-            "json",
+            "--model", self.model,
+            "--epochs", str(self._selected_k),
+            "--log-dir", "logs/leaderboard",
+            "--log-format", "json",
         ]
 
-        try:
-            self._current_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=open_telco_dir,
-                start_new_session=True,  # Create new process group for clean termination
-            )
+        process = start_process(cmd, cwd=OPEN_TELCO_DIR)
+        if process is None:
+            self.app.call_from_thread(self._transition_to_error, "Failed to start evaluation process")
+            return
 
-            try:
-                stdout, stderr = self._current_process.communicate(timeout=3600)
-                returncode = self._current_process.returncode
-            except subprocess.TimeoutExpired:
-                self._current_process.kill()
-                self._current_process.wait()
-                try:
-                    self.app.call_from_thread(
-                        self._show_error, "Evaluation timed out after 1 hour"
-                    )
-                except Exception:
-                    pass
-                return
-            finally:
-                self._current_process = None
+        self._current_process = process
+        stdout, stderr, timed_out = communicate_with_timeout(process, Timeouts.FULL_EVAL)
+        self._current_process = None
 
-            if self._cancelled:
-                return
+        if timed_out:
+            self.app.call_from_thread(self._transition_to_error, "Evaluation timed out after 1 hour")
+            return
+        if self._cancelled:
+            return
+        if process.returncode != 0:
+            error_msg = self._extract_last_error_line(stderr or stdout)
+            self.app.call_from_thread(self._transition_to_error, f"Evaluation failed: {error_msg}")
+            return
 
-            if returncode == 0:
-                self.app.call_from_thread(self._export_and_show_results)
-            else:
-                error_output = stderr or stdout or "Eval failed"
-                error_lines = [
-                    line for line in error_output.strip().split("\n") if line.strip()
-                ]
-                error_msg = error_lines[-1] if error_lines else "Eval failed"
-                self.app.call_from_thread(
-                    self._show_error, f"Evaluation failed: {error_msg}"
-                )
-
-        except Exception as e:
-            self._current_process = None
-            try:
-                self.app.call_from_thread(self._show_error, f"Evaluation failed: {e}")
-            except Exception:
-                pass  # App may have been closed
+        self.app.call_from_thread(self._export_and_show_results)
 
     def _export_and_show_results(self) -> None:
-        """Export results to parquet and show preview."""
         self.stage = Stage.EXPORTING
-        self.query_one("#error-message", Static).update(
-            "[#8b949e]exporting-results...[/]"
-        )
+        self.query_one("#error-message", Static).update(f"[{Colors.TEXT_MUTED}]exporting-results...[/]")
         self._do_export()
 
     @work(exclusive=True, thread=True)
     def _do_export(self) -> None:
-        """Export results to parquet in background thread."""
         try:
-            open_telco_dir = self._get_open_telco_dir()
-            log_dir = open_telco_dir / "logs" / "leaderboard"
+            log_dir = OPEN_TELCO_DIR / "logs" / "leaderboard"
             output_path = log_dir / "results.parquet"
 
             if not log_dir.exists():
                 raise FileNotFoundError(f"Log directory not found: {log_dir}")
 
             df = self._export_to_leaderboard_parquet(str(log_dir), str(output_path))
-
             preview = self._format_results_preview(df)
             self.app.call_from_thread(
-                self._on_export_success, preview, str(output_path.relative_to(open_telco_dir))
+                self._on_export_success, preview, str(output_path.relative_to(OPEN_TELCO_DIR))
             )
 
         except Exception as e:
-            try:
-                self.app.call_from_thread(self._show_error, f"Export failed: {e}")
-            except Exception:
-                pass  # App may have been closed
-
-    def _parse_model_display_name(self, model_str: str) -> str:
-        """Parse model string to display format: 'model_name (Provider)'."""
-        parts = model_str.split("/")
-
-        if len(parts) >= 3:
-            # Format: router/provider/model (e.g., openrouter/openai/gpt-5.2)
-            provider = parts[1]
-            model_name = "/".join(parts[2:])
-        elif len(parts) == 2:
-            # Format: provider/model (e.g., openai/gpt-4o)
-            provider = parts[0]
-            model_name = parts[1]
-        else:
-            provider = "unknown"
-            model_name = model_str
-
-        provider_display = PROVIDER_NAMES.get(provider.lower(), provider.title())
-        return f"{model_name} ({provider_display})"
+            self.app.call_from_thread(self._transition_to_error, f"Export failed: {e}")
 
     def _export_to_leaderboard_parquet(self, log_dir: str, output_path: str) -> pd.DataFrame:
-        """Convert inspect eval logs to GSMA leaderboard parquet format."""
         df = evals_df(log_dir)
 
         if df.empty:
             raise ValueError(f"No eval logs found in {log_dir}")
 
         results = []
-        models = df["model"].unique()
-
-        for model in models:
-            model_df = df[df["model"] == model]
-
-            row = {
-                "model": self._parse_model_display_name(model),
-                "teleqna": None,
-                "telelogs": None,
-                "telemath": None,
-                "3gpp_tsg": None,
-                "date": date.today().isoformat(),
-            }
-
-            for _, eval_row in model_df.iterrows():
-                task_name = eval_row.get("task_name", "")
-
-                task_id = None
-                for key in TASK_TO_COLUMN:
-                    if key in task_name.lower():
-                        task_id = key
-                        break
-
-                if task_id is None:
-                    continue
-
-                column_name = TASK_TO_COLUMN[task_id]
-
-                score = eval_row.get("score_headline_value")
-                stderr = eval_row.get("score_headline_stderr")
-
-                # Get n_samples from dataset_sample_ids (the actual samples evaluated)
-                # dataset_sample_ids is stored as a JSON string like "[1, 2, 3, ...]"
-                dataset_sample_ids = eval_row.get("dataset_sample_ids", "[]")
-                if isinstance(dataset_sample_ids, str):
-                    import json
-                    try:
-                        sample_ids = json.loads(dataset_sample_ids)
-                        n_samples = len(sample_ids) if isinstance(sample_ids, list) else 0
-                    except (json.JSONDecodeError, TypeError):
-                        n_samples = 0
-                elif hasattr(dataset_sample_ids, "__len__"):
-                    n_samples = len(dataset_sample_ids)
-                else:
-                    n_samples = eval_row.get("completed_samples", eval_row.get("total_samples", 0))
-
-                if pd.notna(score):
-                    score_val = float(score) * 100 if float(score) <= 1.0 else float(score)
-                    stderr_val = (
-                        float(stderr) * 100 if pd.notna(stderr) and float(stderr) <= 1.0 else (float(stderr) if pd.notna(stderr) else 0.0)
-                    )
-                    n_samples_val = float(n_samples) if pd.notna(n_samples) else 0.0
-                    row[column_name] = [score_val, stderr_val, n_samples_val]
-
+        for model in df["model"].unique():
+            row = self._build_model_row(df[df["model"] == model], model)
             results.append(row)
 
         result_df = pd.DataFrame(results)
         column_order = ["model", "teleqna", "telelogs", "telemath", "3gpp_tsg", "date"]
         result_df = result_df[column_order]
 
-        output_file = Path(output_path)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         result_df.to_parquet(output_path, index=False)
 
         return result_df
 
+    def _build_model_row(self, model_df: pd.DataFrame, model: str) -> dict:
+        model_info = parse_model_string(model)
+        row = {
+            "model": model_info.display_name,
+            "teleqna": None,
+            "telelogs": None,
+            "telemath": None,
+            "3gpp_tsg": None,
+            "date": date.today().isoformat(),
+        }
+
+        for _, eval_row in model_df.iterrows():
+            task_name = eval_row.get("task_name", "")
+            task_id = self._find_task_id(task_name)
+            if task_id is None:
+                continue
+
+            column_name = TASK_TO_COLUMN[task_id]
+            score_array = self._build_score_array(eval_row)
+            if score_array is not None:
+                row[column_name] = score_array
+
+        return row
+
+    def _find_task_id(self, task_name: str) -> str | None:
+        task_lower = task_name.lower()
+        for key in TASK_TO_COLUMN:
+            if key in task_lower:
+                return key
+        return None
+
+    def _build_score_array(self, eval_row: pd.Series) -> list[float] | None:
+        score = eval_row.get("score_headline_value")
+        if pd.isna(score):
+            return None
+
+        stderr = eval_row.get("score_headline_stderr")
+        n_samples = self._extract_sample_count(eval_row)
+
+        score_val = float(score) * 100 if float(score) <= 1.0 else float(score)
+        stderr_val = 0.0
+        if pd.notna(stderr):
+            stderr_val = float(stderr) * 100 if float(stderr) <= 1.0 else float(stderr)
+        n_samples_val = float(n_samples) if pd.notna(n_samples) else 0.0
+
+        return [score_val, stderr_val, n_samples_val]
+
+    def _extract_sample_count(self, eval_row: pd.Series) -> int:
+        dataset_sample_ids = eval_row.get("dataset_sample_ids", "[]")
+
+        if isinstance(dataset_sample_ids, str):
+            try:
+                sample_ids = json.loads(dataset_sample_ids)
+                if isinstance(sample_ids, list):
+                    return len(sample_ids)
+            except (json.JSONDecodeError, TypeError):
+                pass
+            return 0
+
+        if hasattr(dataset_sample_ids, "__len__"):
+            return len(dataset_sample_ids)
+
+        return eval_row.get("completed_samples", eval_row.get("total_samples", 0))
+
     def _format_results_preview(self, df: pd.DataFrame) -> str:
-        """Format results DataFrame as a human-readable preview string."""
         if df.empty:
             return "No results to display"
 
@@ -989,67 +1559,56 @@ class RunEvalsScreen(Screen[None]):
         for _, row in df.iterrows():
             lines.append(f"model: {row['model']}")
             lines.append("")
-
-            for col, display in [
-                ("teleqna", "teleqna"),
-                ("telelogs", "telelogs"),
-                ("telemath", "telemath"),
-                ("3gpp_tsg", "3gpp_tsg"),
-            ]:
-                val = row.get(col)
-                if val is not None and isinstance(val, list) and len(val) >= 2:
-                    score, stderr = val[0], val[1]
-                    lines.append(f"  {display:10} {score:6.2f} ± {stderr:.2f}")
-                else:
-                    lines.append(f"  {display:10} --")
-
+            for col, display in [("teleqna", "teleqna"), ("telelogs", "telelogs"), ("telemath", "telemath"), ("3gpp_tsg", "3gpp_tsg")]:
+                lines.append(self._format_score_line(row.get(col), display))
             lines.append("")
 
         return "\n".join(lines)
 
+    def _format_score_line(self, val: list | None, display: str) -> str:
+        if val is None:
+            return f"  {display:10} --"
+        if not isinstance(val, list):
+            return f"  {display:10} --"
+        if len(val) < 2:
+            return f"  {display:10} --"
+        return f"  {display:10} {val[0]:6.2f} ± {val[1]:.2f}"
+
+    def _colorize_preview_line(self, line: str) -> str:
+        if line.startswith("model:"):
+            return f"[{Colors.TEXT_PRIMARY}]{line}[/]"
+        if "±" in line:
+            return f"[{Colors.TEXT_MUTED}]{line}[/]"
+        return line
+
     def _on_export_success(self, preview: str, output_path: str) -> None:
-        """Handle successful export completion."""
         self.stage = Stage.COMPLETE
-
-        # Format the preview with colors
-        preview_lines = preview.strip().split("\n")
-        formatted_lines = []
-        for line in preview_lines:
-            if line.startswith("model:"):
-                formatted_lines.append(f"[#f0f6fc]{line}[/]")
-            elif "±" in line:
-                formatted_lines.append(f"[#8b949e]{line}[/]")
-            else:
-                formatted_lines.append(line)
-
+        formatted_lines = [self._colorize_preview_line(line) for line in preview.strip().split("\n")]
         formatted_preview = "\n".join(formatted_lines)
 
         self.query_one("#error-message", Static).update(
-            f"[#3fb950]evaluation-complete![/]\n\n{formatted_preview}\n"
-            f"[#8b949e]saved: {output_path}[/]"
+            f"[{Colors.SUCCESS}]evaluation-complete![/]\n\n{formatted_preview}\n"
+            f"[{Colors.TEXT_MUTED}]saved: {output_path}[/]"
         )
         self.query_one("#footer", Static).update(
-            "[#8b949e]enter[/] done [#30363d]|[/] [#8b949e]q[/] back"
-        )
-
-    def _on_eval_success(self) -> None:
-        """Handle successful evaluation completion (legacy, now uses _export_and_show_results)."""
-        self.stage = Stage.COMPLETE
-        self.query_one("#error-message", Static).update(
-            "[#3fb950]evaluation-complete! results-saved-to logs/leaderboard/[/]"
-        )
-        self.query_one("#footer", Static).update(
-            "[#8b949e]enter[/] done [#30363d]|[/] [#8b949e]q[/] back"
+            f"[{Colors.TEXT_MUTED}]enter[/] done [{Colors.BORDER}]|[/] [{Colors.TEXT_MUTED}]q[/] back"
         )
 
     def action_cancel(self) -> None:
-        """Cancel and go back, killing any running process."""
         self._cancelled = True
         self._kill_current_process()
         self.app.pop_screen()
 
     def action_confirm(self) -> None:
-        """Handle enter key based on current stage."""
-        if self.stage == Stage.COMPLETE:
-            # Timer cleanup is handled by on_unmount
-            self.app.pop_screen()
+        if self.stage != Stage.COMPLETE:
+            return
+        self.app.pop_screen()
+
+    def _parse_model_display_name(self, model_str: str) -> str:
+        """Parse model string to display format for test compatibility."""
+        model_info = parse_model_string(model_str)
+        return model_info.display_name
+
+    def _get_open_telco_dir(self) -> Path:
+        """Get the open_telco source directory path for test compatibility."""
+        return OPEN_TELCO_DIR

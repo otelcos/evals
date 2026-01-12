@@ -8,8 +8,8 @@ from open_telco.cli.preflight.edge_cases import (
     validate_boxed_response,
 )
 from open_telco.cli.preflight.runner import (
+    EvalFunc,
     PreflightConfig,
-    PreflightResult,
     PreflightRunner,
     PreflightStatus,
 )
@@ -24,8 +24,8 @@ __all__ = [
     "BOXED_PATTERN",
     "EDGE_CASE_PROMPTS",
     "EdgeCasePrompt",
+    "EvalFunc",
     "PreflightConfig",
-    "PreflightResult",
     "PreflightRunner",
     "PreflightStatus",
     "STRESS_TEST_PROMPTS",

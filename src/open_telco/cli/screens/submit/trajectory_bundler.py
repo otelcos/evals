@@ -22,6 +22,42 @@ class SubmissionBundle:
     trajectory_files: dict[str, bytes]  # filename -> content
 
 
+def _try_load_model_parquet(parquet_path: Path | None, model_str: str) -> bytes | None:
+    """Try to load parquet data for a specific model. Returns None on failure."""
+    if parquet_path is None:
+        return None
+    if not parquet_path.exists():
+        return None
+
+    df = _try_read_parquet(parquet_path)
+    if df is None:
+        return None
+
+    model_df = df[df["model"] == model_str]
+    if model_df.empty:
+        return None
+
+    buffer = io.BytesIO()
+    model_df.to_parquet(buffer, index=False)
+    return buffer.getvalue()
+
+
+def _try_read_parquet(path: Path) -> pd.DataFrame | None:
+    """Try to read a parquet file. Returns None on failure."""
+    try:
+        return pd.read_parquet(path)
+    except Exception:
+        return None
+
+
+def _try_load_json(path: Path) -> dict | None:
+    """Try to load JSON from a file. Returns None on failure."""
+    try:
+        return json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 def create_submission_bundle(
     model_name: str,
     provider: str,
@@ -46,20 +82,8 @@ def create_submission_bundle(
     # Expected model string format in parquet
     model_str = f"{model_name} ({provider})"
 
-    parquet_bytes: bytes | None = None
-
     # Try parquet first if available
-    if results_parquet_path and results_parquet_path.exists():
-        try:
-            df = pd.read_parquet(results_parquet_path)
-            model_df = df[df["model"] == model_str]
-
-            if not model_df.empty:
-                buffer = io.BytesIO()
-                model_df.to_parquet(buffer, index=False)
-                parquet_bytes = buffer.getvalue()
-        except Exception:
-            pass
+    parquet_bytes = _try_load_model_parquet(results_parquet_path, model_str)
 
     # Generate parquet from JSON logs if needed
     if parquet_bytes is None:
@@ -183,18 +207,26 @@ def _find_trajectory_files(
 
     # Look for JSON files in the log directory
     for json_file in log_dir.glob("*.json"):
-        try:
-            with open(json_file, "r") as f:
-                data = json.load(f)
-
-            if _trajectory_matches_model(data, model_name, provider, raw_model):
-                trajectory_files[json_file.name] = json_file.read_bytes()
-
-        except (json.JSONDecodeError, OSError):
-            # Skip invalid or unreadable files
+        data = _try_load_json(json_file)
+        if data is None:
             continue
 
+        if not _trajectory_matches_model(data, model_name, provider, raw_model):
+            continue
+
+        content = _try_read_bytes(json_file)
+        if content is not None:
+            trajectory_files[json_file.name] = content
+
     return trajectory_files
+
+
+def _try_read_bytes(path: Path) -> bytes | None:
+    """Try to read file as bytes. Returns None on failure."""
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
 
 
 def _trajectory_matches_model(

@@ -21,6 +21,26 @@ class HuggingFaceError(Exception):
     pass
 
 
+def _fetch_with_timeout(url: str, timeout: int) -> requests.Response | None:
+    """Fetch URL with timeout. Returns None on failure, raises HuggingFaceError."""
+    try:
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
+        return response
+    except requests.Timeout:
+        raise HuggingFaceError("request-timed-out. try-again.")
+    except requests.RequestException as e:
+        raise HuggingFaceError(f"failed-to-fetch-leaderboard: {e}")
+
+
+def _try_parse_json(response: requests.Response) -> dict | None:
+    """Try to parse JSON from response. Returns None on failure."""
+    try:
+        return response.json()
+    except (ValueError, requests.JSONDecodeError):
+        return None
+
+
 def fetch_leaderboard(timeout: int = 30) -> list[dict[str, Any]]:
     """Fetch leaderboard data from HuggingFace.
 
@@ -33,17 +53,12 @@ def fetch_leaderboard(timeout: int = 30) -> list[dict[str, Any]]:
     Raises:
         HuggingFaceError: On network errors, timeout, or invalid response
     """
-    try:
-        response = requests.get(HUGGINGFACE_API_URL, timeout=timeout)
-        response.raise_for_status()
-    except requests.Timeout:
-        raise HuggingFaceError("request-timed-out. try-again.")
-    except requests.RequestException as e:
-        raise HuggingFaceError(f"failed-to-fetch-leaderboard: {e}")
+    response = _fetch_with_timeout(HUGGINGFACE_API_URL, timeout)
+    if response is None:
+        raise HuggingFaceError("failed-to-fetch-leaderboard")
 
-    try:
-        data = response.json()
-    except ValueError:
+    data = _try_parse_json(response)
+    if data is None:
         raise HuggingFaceError("invalid-response-format")
 
     if "rows" not in data:

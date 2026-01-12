@@ -6,62 +6,44 @@ from textual.containers import Container
 from textual.screen import Screen
 from textual.widgets import Static
 
+from open_telco.cli.base_screen import BaseScreen
 from open_telco.cli.config import PROVIDERS, EnvManager
+from open_telco.cli.constants import Colors
 from open_telco.cli.widgets import Menu
 
 
-class ProviderSelectScreen(Screen[None]):
+class ProviderSelectScreen(BaseScreen):
     """Screen for selecting AI provider."""
 
     # Store provider names list for lookup
     PROVIDER_NAMES = list(PROVIDERS.keys())
 
-    DEFAULT_CSS = """
-    ProviderSelectScreen {
+    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    ProviderSelectScreen {{
         padding: 0 4;
         layout: vertical;
-    }
+    }}
 
-    #header {
-        color: #a61d2d;
-        text-style: bold;
-        padding: 0 0 2 0;
-        height: auto;
-    }
-
-    #menu-container {
+    #menu-container {{
         width: 100%;
         max-width: 50;
         height: auto;
         padding: 0 2;
-    }
+    }}
 
-    Menu {
+    Menu {{
         height: auto;
         padding: 0;
-    }
+    }}
 
-    MenuItem {
+    MenuItem {{
         height: 1;
         padding: 0;
         background: transparent;
-    }
-
-    #spacer {
-        height: 1fr;
-    }
-
-    #footer {
-        dock: bottom;
-        height: 1;
-        padding: 0 0;
-        color: #484f58;
-    }
+    }}
     """
 
-    BINDINGS = [
-        Binding("q", "go_back", "Back"),
-        Binding("escape", "go_back", "Back"),
+    BINDINGS = BaseScreen.BINDINGS + [
         Binding("enter", "select", "Select"),
         Binding("up", "up", "Up", show=False),
         Binding("down", "down", "Down", show=False),
@@ -76,7 +58,7 @@ class ProviderSelectScreen(Screen[None]):
             yield Menu(*menu_items)
         yield Static("", id="spacer")
         yield Static(
-            "[#8b949e]↵[/] select [#30363d]·[/] [#8b949e]q[/] back",
+            f"[{Colors.TEXT_MUTED}]↵[/] select [{Colors.BORDER}]·[/] [{Colors.TEXT_MUTED}]q[/] back",
             id="footer",
             markup=True,
         )
@@ -89,26 +71,18 @@ class ProviderSelectScreen(Screen[None]):
 
     def action_select(self) -> None:
         label, provider_name, _disabled = self.query_one(Menu).get_selected()
+        next_screen = self._get_next_screen(provider_name)
+        self.app.push_screen(next_screen)
 
-        # Check if API key already exists
+    def _get_next_screen(self, provider_name: str) -> Screen:
+        """Determine next screen based on whether API key exists."""
+        from open_telco.cli.screens.set_models.api_key_input import ApiKeyInputScreen
+        from open_telco.cli.screens.set_models.model_input import ModelInputScreen
+
         env_manager = EnvManager()
         env_key = PROVIDERS[provider_name]["env_key"]
 
         if env_manager.has_key(env_key):
-            # Key exists, go directly to model input
-            from open_telco.cli.screens.set_models.model_input import (
-                ModelInputScreen,
-            )
+            return ModelInputScreen(provider_name, from_api_key_screen=False)
 
-            self.app.push_screen(ModelInputScreen(provider_name, from_api_key_screen=False))
-        else:
-            # Key doesn't exist, ask for it first
-            from open_telco.cli.screens.set_models.api_key_input import (
-                ApiKeyInputScreen,
-            )
-
-            self.app.push_screen(ApiKeyInputScreen(provider_name))
-
-    def action_go_back(self) -> None:
-        """Go back to category menu."""
-        self.app.pop_screen()
+        return ApiKeyInputScreen(provider_name)

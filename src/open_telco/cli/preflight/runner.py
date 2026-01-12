@@ -1,11 +1,17 @@
 """Pre-flight model testing runner."""
 
+from __future__ import annotations
+
 import asyncio
-import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+
+DEFAULT_SAMPLE_LIMIT = 5
+DEFAULT_TIMEOUT_SECONDS = 120
+DEFAULT_TASKS = ("telelogs/telelogs.py", "teleqna/teleqna.py")
+DEFAULT_LOG_DIR = "logs/preflight"
 
 
 class PreflightStatus(Enum):
@@ -20,201 +26,103 @@ class PreflightStatus(Enum):
 
 
 @dataclass
-class PreflightResult:
-    """Result of a pre-flight test."""
-
-    model: str
-    status: PreflightStatus
-    error_message: str | None = None
-    samples_completed: int = 0
-    format_errors: int = 0
-    duration_seconds: float = 0.0
-
-
-@dataclass
 class PreflightConfig:
     """Configuration for pre-flight tests."""
 
-    sample_limit: int = 5
-    timeout_seconds: int = 120  # 2 minutes per model
-    tasks: list[str] = field(
-        default_factory=lambda: [
-            "telelogs/telelogs.py",
-            "teleqna/teleqna.py",
-        ]
-    )
-    log_dir: str = "logs/preflight"
+    sample_limit: int = DEFAULT_SAMPLE_LIMIT
+    timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
+    tasks: tuple[str, ...] = DEFAULT_TASKS
+    log_dir: str = DEFAULT_LOG_DIR
+
+
+EvalFunc = Callable[..., tuple[bool, Any]]
 
 
 class PreflightRunner:
     """Runs pre-flight tests on models before full evaluation."""
 
-    DEFAULT_TASKS = [
-        "telelogs/telelogs.py",
-        "teleqna/teleqna.py",
-    ]
-
     def __init__(
         self,
+        eval_func: EvalFunc,
         config: PreflightConfig | None = None,
         on_progress: Callable[[str, PreflightStatus], None] | None = None,
     ) -> None:
-        """Initialize the pre-flight runner.
-
-        Args:
-            config: Configuration for pre-flight tests.
-            on_progress: Callback for progress updates (model, status).
-        """
+        self._eval_func = eval_func
         self.config = config or PreflightConfig()
         self.on_progress = on_progress
-        self.results: dict[str, PreflightResult] = {}
+        self.results: dict[str, bool | None] = {}
         self._cancelled = False
 
     def cancel(self) -> None:
         """Cancel the pre-flight tests."""
         self._cancelled = True
 
-    def _notify_progress(self, model: str, status: PreflightStatus) -> None:
-        """Notify progress callback if set."""
+    def _notify(self, model: str, status: PreflightStatus) -> None:
         if self.on_progress:
             self.on_progress(model, status)
 
     def _execute_eval_sync(self, model: str) -> tuple[bool, Any]:
-        """Execute evaluation synchronously.
-
-        This runs in a thread pool to avoid blocking the event loop.
-        """
-        from inspect_ai import eval_set
-
-        success, logs = eval_set(
-            tasks=self.config.tasks,
+        """Execute evaluation synchronously in thread pool."""
+        return self._eval_func(
+            tasks=list(self.config.tasks),
             model=[model],
             limit=self.config.sample_limit,
             log_dir=self.config.log_dir,
             epochs=1,
             temperature=0.0,
         )
-        return success, logs
 
-    async def run_model_test(self, model: str) -> PreflightResult:
-        """Run pre-flight test for a single model with timeout.
-
-        Args:
-            model: The model identifier (e.g., "openrouter/openai/gpt-4o").
+    async def run_model_test(self, model: str) -> bool | None:
+        """Run pre-flight test for a single model.
 
         Returns:
-            PreflightResult with the test outcome.
+            True: Test passed
+            False: Test failed
+            None: Test skipped or timed out
+
+        Raises:
+            Exception: Any exception from eval_func propagates up
         """
         if self._cancelled:
-            return PreflightResult(
-                model=model,
-                status=PreflightStatus.SKIPPED,
-                error_message="Test cancelled",
-            )
+            self._notify(model, PreflightStatus.SKIPPED)
+            return None
 
-        self._notify_progress(model, PreflightStatus.RUNNING)
-        start_time = time.time()
+        self._notify(model, PreflightStatus.RUNNING)
 
         try:
-            # Run eval_set in a thread pool with timeout
             loop = asyncio.get_event_loop()
-            success, logs = await asyncio.wait_for(
+            success, _ = await asyncio.wait_for(
                 loop.run_in_executor(None, self._execute_eval_sync, model),
                 timeout=self.config.timeout_seconds,
             )
-
-            duration = time.time() - start_time
-
-            if success:
-                result = PreflightResult(
-                    model=model,
-                    status=PreflightStatus.PASSED,
-                    samples_completed=self.config.sample_limit * len(self.config.tasks),
-                    duration_seconds=duration,
-                )
-            else:
-                result = PreflightResult(
-                    model=model,
-                    status=PreflightStatus.FAILED,
-                    error_message="Evaluation returned failure",
-                    duration_seconds=duration,
-                )
-
         except asyncio.TimeoutError:
-            duration = time.time() - start_time
-            result = PreflightResult(
-                model=model,
-                status=PreflightStatus.TIMEOUT,
-                error_message=f"Model timed out after {self.config.timeout_seconds}s",
-                duration_seconds=duration,
-            )
+            self._notify(model, PreflightStatus.TIMEOUT)
+            return None
 
-        except Exception as e:
-            duration = time.time() - start_time
-            result = PreflightResult(
-                model=model,
-                status=PreflightStatus.FAILED,
-                error_message=str(e),
-                duration_seconds=duration,
-            )
+        if not success:
+            self._notify(model, PreflightStatus.FAILED)
+            return False
 
-        self._notify_progress(model, result.status)
-        return result
+        self._notify(model, PreflightStatus.PASSED)
+        return True
 
-    async def run_all(self, models: list[str]) -> dict[str, PreflightResult]:
-        """Run pre-flight tests for all models sequentially.
-
-        Args:
-            models: List of model identifiers to test.
-
-        Returns:
-            Dictionary mapping model names to their results.
-        """
+    async def run_all(self, models: list[str]) -> dict[str, bool | None]:
+        """Run pre-flight tests for all models."""
         self.results = {}
-
         for model in models:
-            if self._cancelled:
-                self.results[model] = PreflightResult(
-                    model=model,
-                    status=PreflightStatus.SKIPPED,
-                    error_message="Test cancelled",
-                )
-            else:
-                result = await self.run_model_test(model)
-                self.results[model] = result
-
+            self.results[model] = await self.run_model_test(model)
         return self.results
 
     def get_passed_models(self) -> list[str]:
-        """Return list of models that passed pre-flight.
-
-        Returns:
-            List of model identifiers that passed testing.
-        """
-        return [
-            model
-            for model, result in self.results.items()
-            if result.status == PreflightStatus.PASSED
-        ]
+        """Return list of models that passed pre-flight."""
+        return [m for m, r in self.results.items() if r is True]
 
     def get_failed_models(self) -> list[str]:
-        """Return list of models that failed pre-flight.
-
-        Returns:
-            List of model identifiers that failed testing.
-        """
-        return [
-            model
-            for model, result in self.results.items()
-            if result.status in (PreflightStatus.FAILED, PreflightStatus.TIMEOUT)
-        ]
+        """Return list of models that failed pre-flight."""
+        return [m for m, r in self.results.items() if r is False]
 
     def get_summary(self) -> str:
-        """Get a summary of pre-flight results.
-
-        Returns:
-            Human-readable summary string.
-        """
+        """Get a summary of pre-flight results."""
         passed = len(self.get_passed_models())
         failed = len(self.get_failed_models())
         total = len(self.results)

@@ -1,5 +1,4 @@
 """Submit screen for submitting evaluation results to GSMA leaderboard."""
-
 from __future__ import annotations
 
 from enum import Enum
@@ -12,28 +11,20 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.screen import Screen
 from textual.widgets import Static
 
+from open_telco.cli.base_screen import BaseScreen
 from open_telco.cli.config import EnvManager
-from open_telco.cli.services.huggingface_client import parse_model_provider
-from open_telco.cli.services.tci_calculator import LeaderboardEntry, with_tci
+from open_telco.cli.constants import Colors
+from open_telco.cli.services.huggingface_client import (
+    HuggingFaceError,
+    fetch_and_transform_leaderboard,
+    parse_model_provider,
+)
+from open_telco.cli.services.tci_calculator import LeaderboardEntry, calculate_all_tci
+from open_telco.cli.utils.model_parser import parse_model_string
 
-# Map provider prefixes to display names
-_PROVIDER_NAMES = {
-    "openai": "Openai",
-    "anthropic": "Anthropic",
-    "google": "Google",
-    "mistralai": "Mistral",
-    "deepseek": "Deepseek",
-    "meta-llama": "Meta",
-    "cohere": "Cohere",
-    "together": "Together",
-    "openrouter": "Openrouter",
-    "groq": "Groq",
-    "fireworks": "Fireworks",
-    "allenai": "Allenai",
-}
+OPEN_TELCO_DIR = Path(__file__).parent.parent.parent.parent
 
 
 class Stage(Enum):
@@ -60,88 +51,65 @@ class ModelChecklistItem(Static):
         self.tci = tci
 
     def render(self) -> str:
-        checkbox = "[#3fb950][x][/]" if self.selected else "[#484f58][ ][/]"
-        if self.highlighted:
-            highlight_start = "[bold #f0f6fc]"
-            highlight_end = "[/]"
-        else:
-            highlight_start = "[#8b949e]"
-            highlight_end = "[/]"
+        checkbox = f"[{Colors.SUCCESS}][x][/]" if self.selected else f"[{Colors.TEXT_DISABLED}][ ][/]"
+        style = f"bold {Colors.TEXT_PRIMARY}" if self.highlighted else Colors.TEXT_MUTED
         tci_str = f" TCI: {self.tci:.1f}" if self.tci else ""
-        return f"  {checkbox} {highlight_start}{self.model}{highlight_end} [#484f58]({self.provider}){tci_str}[/]"
+        return f"  {checkbox} [{style}]{self.model}[/] [{Colors.TEXT_DISABLED}]({self.provider}){tci_str}[/]"
 
-    def toggle(self) -> None:
+    def toggle(self) -> bool:
         self.selected = not self.selected
+        return self.selected
 
 
-class SubmitScreen(Screen[None]):
+class SubmitScreen(BaseScreen):
     """Screen for submitting evaluation results."""
 
-    DEFAULT_CSS = """
-    SubmitScreen {
+    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    SubmitScreen {{
         padding: 0 4;
         layout: vertical;
-    }
+    }}
 
-    #header {
-        color: #a61d2d;
-        text-style: bold;
+    #status {{
+        color: {Colors.TEXT_MUTED};
         padding: 0 0 1 0;
         height: auto;
-    }
+    }}
 
-    #status {
-        color: #8b949e;
-        padding: 0 0 1 0;
-        height: auto;
-    }
-
-    #model-list-container {
+    #model-list-container {{
         width: 100%;
         max-width: 80;
         height: auto;
         max-height: 15;
         padding: 0;
-    }
+    }}
 
-    #model-list {
+    #model-list {{
         height: auto;
         padding: 0;
-    }
+    }}
 
-    ModelChecklistItem {
+    ModelChecklistItem {{
         height: 1;
         padding: 0;
         background: transparent;
-    }
+    }}
 
-    #confirm-message {
-        color: #f0f6fc;
+    #confirm-message {{
+        color: {Colors.TEXT_PRIMARY};
         padding: 1 0;
         height: auto;
-    }
+    }}
 
-    #progress-container {
+    #progress-container {{
         width: 100%;
         max-width: 60;
         height: auto;
         padding: 1 0;
-    }
-
-    #spacer {
-        height: 1fr;
-    }
-
-    #footer {
-        dock: bottom;
-        height: 1;
-        color: #484f58;
-    }
+    }}
     """
 
-    BINDINGS = [
-        Binding("q", "go_back", "Back"),
-        Binding("escape", "go_back", "Back"),
+    BINDINGS = BaseScreen.BINDINGS + [
         Binding("space", "toggle_selection", "Toggle", show=True),
         Binding("enter", "submit", "Submit", show=True),
         Binding("up", "move_up", "Up", show=False),
@@ -160,6 +128,10 @@ class SubmitScreen(Screen[None]):
         self._pr_url: str | None = None
         self.env_manager = EnvManager()
 
+    def _get_open_telco_dir(self) -> Path:
+        """Return the open_telco root directory. Mockable for tests."""
+        return OPEN_TELCO_DIR
+
     def compose(self) -> ComposeResult:
         yield Static("submit", id="header")
         yield Static("loading...", id="status")
@@ -168,174 +140,183 @@ class SubmitScreen(Screen[None]):
         yield Static("", id="confirm-message", markup=True)
         yield Container(id="progress-container")
         yield Static("", id="spacer")
-        yield Static("[#8b949e]q[/] back", id="footer", markup=True)
+        yield Static(f"[{Colors.TEXT_MUTED}]q[/] back", id="footer", markup=True)
 
     def on_mount(self) -> None:
-        """Start loading data."""
         self._load_models()
+
+    def _get_log_dir(self) -> Path:
+        """Get the leaderboard log directory path."""
+        return self._get_open_telco_dir() / "logs" / "leaderboard"
+
+    def _try_load_models(self, log_dir: Path) -> list[dict] | None:
+        """Try to load models from sources. Returns None on failure."""
+        try:
+            parquet_path = log_dir / "results.parquet"
+            return self._load_models_from_sources(log_dir, parquet_path)
+        except Exception:
+            return None
 
     @work(exclusive=True, thread=True)
     def _load_models(self) -> None:
-        """Load models from JSON logs or results.parquet."""
-        try:
-            open_telco_dir = self._get_open_telco_dir()
-            log_dir = open_telco_dir / "logs" / "leaderboard"
-            parquet_path = log_dir / "results.parquet"
+        log_dir = self._get_log_dir()
 
-            if not log_dir.exists():
-                self.app.call_from_thread(
-                    self._show_error, "no-results-found. run-evals first."
-                )
-                return
+        if not log_dir.exists():
+            self.app.call_from_thread(self._transition_to_error, "no-results-found. run-evals first.")
+            return
 
-            # Try JSON logs first (supports partial results)
-            json_files = list(log_dir.glob("*.json"))
+        models = self._try_load_models(log_dir)
+        if models is None:
+            self.app.call_from_thread(self._transition_to_error, "failed-to-load-models")
+            return
 
-            if json_files:
-                models = self._load_models_from_json(log_dir)
-            elif parquet_path.exists():
-                models = self._load_models_from_parquet(parquet_path)
-            else:
-                self.app.call_from_thread(
-                    self._show_error, "no-results-found. run-evals first."
-                )
-                return
+        if not models:
+            self.app.call_from_thread(self._transition_to_error, "no-results-found. run-evals first.")
+            return
 
-            if not models:
-                self.app.call_from_thread(
-                    self._show_error, "no-results-found. run-evals first."
-                )
-                return
+        self._models = models
+        self.app.call_from_thread(self._show_models)
 
-            self._models = models
-            self.app.call_from_thread(self._show_models)
+    def _load_models_from_sources(self, log_dir: Path, parquet_path: Path) -> list[dict]:
+        json_files = list(log_dir.glob("*.json"))
 
-        except Exception as e:
-            self.app.call_from_thread(self._show_error, f"failed-to-load: {e}")
+        # Load local entries
+        local_entries: list[LeaderboardEntry] = []
+        local_models_data: dict[str, dict] = {}
 
-    def _load_models_from_json(self, log_dir: Path) -> list[dict]:
-        """Load model data from JSON trajectory logs.
+        if json_files:
+            local_entries, local_models_data = self._load_entries_from_json(log_dir)
+        elif parquet_path.exists():
+            local_entries, local_models_data = self._load_entries_from_parquet(parquet_path)
 
-        Args:
-            log_dir: Directory containing JSON log files
-
-        Returns:
-            List of model dictionaries with scores
-        """
-        try:
-            df = evals_df(str(log_dir))
-        except Exception:
+        if not local_entries:
             return []
 
-        if df.empty:
-            return []
+        # Fetch remote leaderboard for IRT fitting (so TCI is computed correctly)
+        try:
+            remote_entries = fetch_and_transform_leaderboard(timeout=30)
+        except HuggingFaceError:
+            remote_entries = []  # Continue without remote data if fetch fails
 
-        # Group by model
-        models_data: dict[str, dict] = {}
+        # Merge: local entries take priority
+        local_model_names = {e.model for e in local_entries}
+        all_entries = local_entries + [e for e in remote_entries if e.model not in local_model_names]
 
-        for _, row in df.iterrows():
-            model_str = row.get("model", "Unknown")
-            model, provider = self._format_model_display(model_str)
+        # Fit IRT on full dataset and calculate TCI
+        all_entries, _irt_params = calculate_all_tci(all_entries)
 
-            model_key = f"{model}_{provider}"
+        # Extract TCI for local models only
+        tci_lookup = {e.model: e.tci for e in all_entries}
 
-            if model_key not in models_data:
-                models_data[model_key] = {
-                    "model": model,
-                    "provider": provider,
-                    "model_str": f"{model} ({provider})",
-                    "raw_model": model_str,  # Store raw for trajectory matching
-                    "scores": {},
-                }
-
-            # Extract task and score
-            task_name = row.get("task_name", "")
-            score = row.get("score_headline_value")
-
-            if pd.notna(score):
-                score_val = float(score) * 100 if float(score) <= 1.0 else float(score)
-
-                task_lower = task_name.lower()
-                if "teleqna" in task_lower:
-                    models_data[model_key]["scores"]["teleqna"] = score_val
-                elif "telelogs" in task_lower:
-                    models_data[model_key]["scores"]["telelogs"] = score_val
-                elif "telemath" in task_lower:
-                    models_data[model_key]["scores"]["telemath"] = score_val
-                elif "three_gpp" in task_lower or "3gpp" in task_lower:
-                    models_data[model_key]["scores"]["tsg"] = score_val
-
-        # Calculate TCI for each model
+        # Build model list with TCI values
         models = []
-        for model_data in models_data.values():
-            scores = model_data["scores"]
-            entry = LeaderboardEntry(
-                model=model_data["model"],
-                provider=model_data["provider"],
-                teleqna=scores.get("teleqna"),
-                telelogs=scores.get("telelogs"),
-                telemath=scores.get("telemath"),
-                tsg=scores.get("tsg"),
-            )
-            with_tci(entry)
-
+        for model_data in local_models_data.values():
             models.append({
                 "model": model_data["model"],
                 "provider": model_data["provider"],
-                "tci": entry.tci,
-                "model_str": model_data["model_str"],
-                "raw_model": model_data["raw_model"],
+                "tci": tci_lookup.get(model_data["model"]),
+                "model_str": model_data.get("model_str", model_data["model"]),
+                "raw_model": model_data.get("raw_model"),
             })
 
         return models
 
-    def _format_model_display(self, model_str: str) -> tuple[str, str]:
-        """Format model string to (model_name, provider) tuple.
-
-        Handles formats like:
-        - openrouter/openai/gpt-4o -> (gpt-4o, Openai)
-        - openai/gpt-4o -> (gpt-4o, Openai)
-        """
-        parts = model_str.split("/")
-
-        if len(parts) >= 3:
-            # Format: router/provider/model
-            provider = parts[1]
-            model_name = "/".join(parts[2:])
-        elif len(parts) == 2:
-            # Format: provider/model
-            provider = parts[0]
-            model_name = parts[1]
-        else:
-            provider = "Unknown"
-            model_name = model_str
-
-        provider_display = _PROVIDER_NAMES.get(provider.lower(), provider.title())
-        return model_name, provider_display
-
-    def _load_models_from_parquet(self, parquet_path: Path) -> list[dict]:
-        """Load models from parquet file (legacy fallback).
-
-        Args:
-            parquet_path: Path to results.parquet
+    def _load_entries_from_json(
+        self, log_dir: Path
+    ) -> tuple[list[LeaderboardEntry], dict[str, dict]]:
+        """Load local entries from JSON logs.
 
         Returns:
-            List of model dictionaries
+            Tuple of (LeaderboardEntry list, models_data dict for building final model list)
+        """
+        try:
+            df = evals_df(str(log_dir))
+        except Exception:
+            return [], {}
+
+        if df.empty:
+            return [], {}
+
+        models_data: dict[str, dict] = {}
+
+        for _, row in df.iterrows():
+            model_str = row.get("model", "Unknown")
+            model_info = parse_model_string(model_str)
+            model_key = f"{model_info.model_name}_{model_info.provider}"
+
+            if model_key not in models_data:
+                models_data[model_key] = {
+                    "model": model_info.model_name,
+                    "provider": model_info.provider,
+                    "model_str": model_info.display_name,
+                    "raw_model": model_str,
+                    "scores": {},
+                }
+
+            task_name = row.get("task_name", "")
+            score = row.get("score_headline_value")
+
+            if pd.isna(score):
+                continue
+
+            score_val = float(score) * 100 if float(score) <= 1.0 else float(score)
+            task_key = self._get_task_key(task_name)
+            if task_key is not None:
+                models_data[model_key]["scores"][task_key] = score_val
+
+        # Build LeaderboardEntry list for IRT fitting
+        entries = []
+        for model_data in models_data.values():
+            scores = model_data["scores"]
+            entries.append(
+                LeaderboardEntry(
+                    model=model_data["model"],
+                    provider=model_data["provider"],
+                    teleqna=scores.get("teleqna"),
+                    telelogs=scores.get("telelogs"),
+                    telemath=scores.get("telemath"),
+                    tsg=scores.get("tsg"),
+                    is_user=True,
+                )
+            )
+
+        return entries, models_data
+
+    def _get_task_key(self, task_name: str) -> str | None:
+        task_lower = task_name.lower()
+        if "teleqna" in task_lower:
+            return "teleqna"
+        if "telelogs" in task_lower:
+            return "telelogs"
+        if "telemath" in task_lower:
+            return "telemath"
+        if "three_gpp" in task_lower or "3gpp" in task_lower:
+            return "tsg"
+        return None
+
+    def _load_entries_from_parquet(
+        self, parquet_path: Path
+    ) -> tuple[list[LeaderboardEntry], dict[str, dict]]:
+        """Load local entries from parquet file.
+
+        Returns:
+            Tuple of (LeaderboardEntry list, models_data dict for building final model list)
         """
         try:
             df = pd.read_parquet(parquet_path)
         except Exception:
-            return []
+            return [], {}
 
         if df.empty:
-            return []
+            return [], {}
 
-        models = []
+        entries = []
+        models_data: dict[str, dict] = {}
+
         for _, row in df.iterrows():
             model_str = row.get("model", "Unknown")
             model, provider = parse_model_provider(model_str)
 
-            # Extract scores for TCI calculation
             teleqna = self._extract_score(row.get("teleqna"))
             telelogs = self._extract_score(row.get("telelogs"))
             telemath = self._extract_score(row.get("telemath"))
@@ -348,30 +329,28 @@ class SubmitScreen(Screen[None]):
                 telelogs=telelogs,
                 telemath=telemath,
                 tsg=tsg,
+                is_user=True,
             )
-            with_tci(entry)
+            entries.append(entry)
 
-            models.append({
+            models_data[model] = {
                 "model": model,
                 "provider": provider,
-                "tci": entry.tci,
                 "model_str": model_str,
-            })
+            }
 
-        return models
+        return entries, models_data
 
     def _extract_score(self, val: list | None) -> float | None:
-        """Extract score value from [score, stderr, n_samples] format."""
-        if val is not None and hasattr(val, "__len__") and len(val) >= 1:
-            return float(val[0])
-        return None
-
-    def _get_open_telco_dir(self) -> Path:
-        """Get the open_telco source directory path."""
-        return Path(__file__).parent.parent.parent.parent
+        if val is None:
+            return None
+        if not hasattr(val, "__len__"):
+            return None
+        if len(val) < 1:
+            return None
+        return float(val[0])
 
     def _show_models(self) -> None:
-        """Display loaded models in checklist."""
         self.stage = Stage.SELECT_MODELS
 
         status = self.query_one("#status", Static)
@@ -387,139 +366,127 @@ class SubmitScreen(Screen[None]):
                 tci=model_data["tci"],
                 item_id=f"model_{i}",
             )
-            if i == 0:
-                item.highlighted = True
+            item.highlighted = i == 0
             model_list.mount(item)
 
         self.query_one("#footer", Static).update(
-            "[#8b949e]space[/] toggle [#30363d]|[/] "
-            "[#8b949e]enter[/] submit [#30363d]|[/] "
-            "[#8b949e]q[/] back"
+            f"[{Colors.TEXT_MUTED}]space[/] toggle [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]enter[/] submit [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]q[/] back"
         )
 
-    def _show_error(self, message: str) -> None:
-        """Show error message."""
+    def _transition_to_error(self, message: str) -> None:
         self.stage = Stage.ERROR
-        status = self.query_one("#status", Static)
-        status.update(f"[#f85149]{message}[/]")
-        self.query_one("#footer", Static).update("[#8b949e]q[/] back")
+        self.query_one("#status", Static).update(f"[{Colors.ERROR}]{message}[/]")
+        self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]q[/] back")
 
     def _get_checklist_items(self) -> list[ModelChecklistItem]:
-        """Get all checklist items."""
         return list(self.query(ModelChecklistItem))
 
-    def _update_highlight(self) -> None:
-        """Update which item is highlighted."""
+    def _update_highlight(self) -> list[ModelChecklistItem]:
         items = self._get_checklist_items()
         for i, item in enumerate(items):
             item.highlighted = i == self.selected_index
+        return items
 
     def action_move_up(self) -> None:
-        """Move selection up."""
         if self.stage != Stage.SELECT_MODELS:
             return
-        items = self._get_checklist_items()
-        if items and self.selected_index > 0:
-            self.selected_index -= 1
-            self._update_highlight()
+        if self.selected_index <= 0:
+            return
+        self.selected_index -= 1
+        self._update_highlight()
 
     def action_move_down(self) -> None:
-        """Move selection down."""
         if self.stage != Stage.SELECT_MODELS:
             return
         items = self._get_checklist_items()
-        if items and self.selected_index < len(items) - 1:
-            self.selected_index += 1
-            self._update_highlight()
+        if self.selected_index >= len(items) - 1:
+            return
+        self.selected_index += 1
+        self._update_highlight()
 
     def action_toggle_selection(self) -> None:
-        """Toggle selection of current item."""
         if self.stage != Stage.SELECT_MODELS:
             return
         items = self._get_checklist_items()
-        if items and 0 <= self.selected_index < len(items):
-            items[self.selected_index].toggle()
+        if not items:
+            return
+        if self.selected_index < 0 or self.selected_index >= len(items):
+            return
+        items[self.selected_index].toggle()
 
     def _get_selected_models(self) -> list[dict]:
-        """Get list of selected model data."""
         items = self._get_checklist_items()
         selected = []
         for i, item in enumerate(items):
-            if item.selected:
-                selected.append(self._models[i])
+            if not item.selected:
+                continue
+            selected.append(self._models[i])
         return selected
 
     def action_submit(self) -> None:
-        """Handle submit action based on current stage."""
-        if self.stage == Stage.SELECT_MODELS:
-            selected = self._get_selected_models()
-            if not selected:
-                self.notify("select at least one model", title="warning")
-                return
-            self._show_confirmation(selected)
-        elif self.stage == Stage.CONFIRMING:
-            self._start_submission()
-        elif self.stage == Stage.SUCCESS:
-            self.app.pop_screen()
+        handlers = {
+            Stage.SELECT_MODELS: self._handle_model_selection,
+            Stage.CONFIRMING: self._start_submission,
+            Stage.SUCCESS: self.app.pop_screen,
+        }
+        handler = handlers.get(self.stage)
+        if handler is None:
+            return
+        handler()
+
+    def _handle_model_selection(self) -> None:
+        selected = self._get_selected_models()
+        if not selected:
+            self.notify("select at least one model", title="warning")
+            return
+        self._show_confirmation(selected)
 
     def _show_confirmation(self, selected: list[dict]) -> None:
-        """Show confirmation before submitting."""
         self.stage = Stage.CONFIRMING
 
-        model_list = "\n".join(
-            f"  - {m['model']} ({m['provider']})" for m in selected
-        )
+        model_list = "\n".join(f"  - {m['model']} ({m['provider']})" for m in selected)
 
-        confirm_msg = self.query_one("#confirm-message", Static)
-        confirm_msg.update(
-            f"[#f0f6fc]submit {len(selected)} model(s) to GSMA/open_telco?[/]\n\n"
-            f"[#8b949e]{model_list}[/]"
+        self.query_one("#confirm-message", Static).update(
+            f"[{Colors.TEXT_PRIMARY}]submit {len(selected)} model(s) to GSMA/open_telco?[/]\n\n"
+            f"[{Colors.TEXT_MUTED}]{model_list}[/]"
         )
 
         self.query_one("#footer", Static).update(
-            "[#8b949e]enter[/] confirm [#30363d]|[/] [#8b949e]q[/] cancel"
+            f"[{Colors.TEXT_MUTED}]enter[/] confirm [{Colors.BORDER}]|[/] [{Colors.TEXT_MUTED}]q[/] cancel"
         )
 
     def _start_submission(self) -> None:
-        """Start the submission process."""
-        # Check for GitHub token from .env file
         self._github_token = self.env_manager.get("GITHUB_TOKEN")
         if not self._github_token:
-            self._show_error(
-                "GITHUB_TOKEN not set. use settings to configure."
-            )
+            self._transition_to_error("GITHUB_TOKEN not set. use settings to configure.")
             return
 
         self.stage = Stage.SUBMITTING
         self.query_one("#confirm-message", Static).update("")
-        self.query_one("#status", Static).update("[#8b949e]submitting...[/]")
-        self.query_one("#footer", Static).update("[#8b949e]please wait...[/]")
+        self.query_one("#status", Static).update(f"[{Colors.TEXT_MUTED}]submitting...[/]")
+        self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]please wait...[/]")
 
         self._do_submission()
 
     @work(exclusive=True, thread=True)
     def _do_submission(self) -> None:
-        """Perform the actual submission in background."""
         from open_telco.cli.screens.submit.github_service import GitHubService
         from open_telco.cli.screens.submit.trajectory_bundler import create_submission_bundle
 
         try:
             selected = self._get_selected_models()
-            open_telco_dir = self._get_open_telco_dir()
-            parquet_path = open_telco_dir / "logs" / "leaderboard" / "results.parquet"
-            log_dir = open_telco_dir / "logs" / "leaderboard"
+            base_dir = self._get_open_telco_dir()
+            parquet_path = base_dir / "logs" / "leaderboard" / "results.parquet"
+            log_dir = base_dir / "logs" / "leaderboard"
 
             github = GitHubService(self._github_token)
 
-            # For now, submit the first selected model
-            # In the future, we could batch multiple models
             model_data = selected[0]
 
-            self.app.call_from_thread(
-                self._update_progress, "bundling trajectories..."
-            )
+            self.app.call_from_thread(self._update_progress, "bundling trajectories...")
 
-            # Pass raw_model for accurate trajectory matching if available
             bundle = create_submission_bundle(
                 model_name=model_data["model"],
                 provider=model_data["provider"],
@@ -528,9 +495,7 @@ class SubmitScreen(Screen[None]):
                 raw_model=model_data.get("raw_model"),
             )
 
-            self.app.call_from_thread(
-                self._update_progress, "creating pull request..."
-            )
+            self.app.call_from_thread(self._update_progress, "creating pull request...")
 
             result = github.create_submission_pr(
                 model_name=bundle.model_name,
@@ -539,48 +504,45 @@ class SubmitScreen(Screen[None]):
                 trajectory_files=bundle.trajectory_files,
             )
 
-            if result.success:
-                self._pr_url = result.pr_url
-                self.app.call_from_thread(self._show_success, result.pr_url)
-            else:
-                self.app.call_from_thread(
-                    self._show_error, f"PR creation failed: {result.error}"
-                )
+            if not result.success:
+                self.app.call_from_thread(self._transition_to_error, f"PR creation failed: {result.error}")
+                return
+
+            self._pr_url = result.pr_url
+            self.app.call_from_thread(self._show_success, result.pr_url)
 
         except Exception as e:
-            self.app.call_from_thread(self._show_error, f"submission failed: {e}")
+            self.app.call_from_thread(self._transition_to_error, f"submission failed: {e}")
 
     def _update_progress(self, message: str) -> None:
-        """Update progress message."""
-        self.query_one("#status", Static).update(f"[#8b949e]{message}[/]")
+        self.query_one("#status", Static).update(f"[{Colors.TEXT_MUTED}]{message}[/]")
 
     def _show_success(self, pr_url: str) -> None:
-        """Show success message with PR URL."""
         self.stage = Stage.SUCCESS
 
-        self.query_one("#status", Static).update("[#3fb950]submission complete![/]")
+        self.query_one("#status", Static).update(f"[{Colors.SUCCESS}]submission complete![/]")
 
-        confirm_msg = self.query_one("#confirm-message", Static)
-        confirm_msg.update(
-            f"[#f0f6fc]PR: {pr_url}[/]\n\n"
-            "[#8b949e]validation will run automatically.\n"
+        self.query_one("#confirm-message", Static).update(
+            f"[{Colors.TEXT_PRIMARY}]PR: {pr_url}[/]\n\n"
+            f"[{Colors.TEXT_MUTED}]validation will run automatically.\n"
             "once approved, scores sync to HuggingFace.[/]"
         )
 
         self.query_one("#footer", Static).update(
-            "[#8b949e]enter[/] done [#30363d]|[/] [#8b949e]q[/] back"
+            f"[{Colors.TEXT_MUTED}]enter[/] done [{Colors.BORDER}]|[/] [{Colors.TEXT_MUTED}]q[/] back"
         )
 
     def action_go_back(self) -> None:
-        """Go back based on current stage."""
         if self.stage == Stage.CONFIRMING:
-            # Go back to selection
-            self.stage = Stage.SELECT_MODELS
-            self.query_one("#confirm-message", Static).update("")
-            self.query_one("#footer", Static).update(
-                "[#8b949e]space[/] toggle [#30363d]|[/] "
-                "[#8b949e]enter[/] submit [#30363d]|[/] "
-                "[#8b949e]q[/] back"
-            )
-        else:
-            self.app.pop_screen()
+            self._return_to_selection()
+            return
+        self.app.pop_screen()
+
+    def _return_to_selection(self) -> None:
+        self.stage = Stage.SELECT_MODELS
+        self.query_one("#confirm-message", Static).update("")
+        self.query_one("#footer", Static).update(
+            f"[{Colors.TEXT_MUTED}]space[/] toggle [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]enter[/] submit [{Colors.BORDER}]|[/] "
+            f"[{Colors.TEXT_MUTED}]q[/] back"
+        )

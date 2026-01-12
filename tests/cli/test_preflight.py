@@ -6,7 +6,6 @@ from open_telco.cli.preflight import (
     EDGE_CASE_PROMPTS,
     EdgeCasePrompt,
     PreflightConfig,
-    PreflightResult,
     PreflightStatus,
     run_edge_case_validation,
     validate_boxed_response,
@@ -163,34 +162,6 @@ class TestPreflightConfig:
         assert config.sample_limit == 3
         assert config.timeout_seconds == 60
         assert len(config.tasks) == 3
-
-
-class TestPreflightResult:
-    """Test pre-flight result dataclass."""
-
-    def test_result_creation(self) -> None:
-        """Test creating a pre-flight result."""
-        result = PreflightResult(
-            model="openai/gpt-4o",
-            status=PreflightStatus.PASSED,
-            samples_completed=10,
-            duration_seconds=5.5,
-        )
-        assert result.model == "openai/gpt-4o"
-        assert result.status == PreflightStatus.PASSED
-        assert result.samples_completed == 10
-        assert result.duration_seconds == 5.5
-        assert result.error_message is None
-
-    def test_result_with_error(self) -> None:
-        """Test creating a failed pre-flight result."""
-        result = PreflightResult(
-            model="openai/gpt-4o",
-            status=PreflightStatus.FAILED,
-            error_message="Connection timeout",
-        )
-        assert result.status == PreflightStatus.FAILED
-        assert result.error_message == "Connection timeout"
 
 
 class TestPreflightStatus:

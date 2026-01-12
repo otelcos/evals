@@ -84,7 +84,7 @@ class TestRunEvalsScreen:
 
     @pytest.mark.asyncio
     async def test_screen_has_checklist_items(self) -> None:
-        """Screen should have 3 checklist items."""
+        """Screen should have 4 checklist items (including find-k)."""
         app = OpenTelcoApp()
         async with app.run_test() as pilot:
             # Mock preflight check to return False so we stay on RunEvalsScreen
@@ -105,11 +105,12 @@ class TestRunEvalsScreen:
 
                 # Check that all checklist items exist
                 items = list(pilot.app.screen.query(ChecklistItem))
-                assert len(items) == 3
+                assert len(items) == 4
 
                 # Verify step IDs
                 step_ids = [item.step_id for item in items]
                 assert "mini_test" in step_ids
+                assert "find_k" in step_ids
                 assert "stress_test" in step_ids
                 assert "ready" in step_ids
 
@@ -246,17 +247,17 @@ class TestTaskChecklistItem:
         item = TaskChecklistItem("telelogs/telelogs.py", "telelogs", "task_0")
         item.selected = True
         rendered = item.render()
-        assert "[X]" in rendered
+        assert "●" in rendered
         assert "telelogs" in rendered
 
     def test_task_checklist_item_unselected_render(self) -> None:
-        """Unselected task should render with [ ] checkbox."""
+        """Unselected task should render with ○ checkbox."""
         from open_telco.cli.screens.run_evals.run_evals_screen import TaskChecklistItem
 
         item = TaskChecklistItem("telelogs/telelogs.py", "telelogs", "task_0")
         item.selected = False
         rendered = item.render()
-        assert "[ ]" in rendered
+        assert "○" in rendered
         assert "telelogs" in rendered
 
     def test_task_checklist_item_toggle(self) -> None:

@@ -361,13 +361,19 @@ Automated validation will check:
             return PRResult(success=True, pr_url=pr["html_url"])
 
         except requests.HTTPError as e:
-            error_msg = str(e)
-            if e.response is not None:
-                try:
-                    error_data = e.response.json()
-                    error_msg = error_data.get("message", str(e))
-                except ValueError:
-                    error_msg = e.response.text or str(e)
-            return PRResult(success=False, error=error_msg)
+            return PRResult(success=False, error=self._extract_http_error(e))
         except Exception as e:
             return PRResult(success=False, error=str(e))
+
+    def _extract_http_error(self, e: requests.HTTPError) -> str:
+        """Extract a human-readable error message from an HTTP error."""
+        if e.response is None:
+            return str(e)
+        return self._try_parse_error_json(e.response) or e.response.text or str(e)
+
+    def _try_parse_error_json(self, response: requests.Response) -> str | None:
+        """Try to parse error message from JSON response. Returns None on failure."""
+        try:
+            return response.json().get("message")
+        except (ValueError, KeyError):
+            return None
