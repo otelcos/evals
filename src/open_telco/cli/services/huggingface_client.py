@@ -112,6 +112,7 @@ def transform_hf_row(row: dict[str, Any]) -> LeaderboardEntry:
     telelogs, telelogs_stderr = _extract_score(row.get("telelogs"))
     telemath, telemath_stderr = _extract_score(row.get("telemath"))
     tsg, tsg_stderr = _extract_score(row.get("3gpp_tsg"))
+    tci, _tci_stderr = _extract_score(row.get("tci"))
 
     return LeaderboardEntry(
         model=model,
@@ -124,6 +125,7 @@ def transform_hf_row(row: dict[str, Any]) -> LeaderboardEntry:
         telemath_stderr=telemath_stderr,
         tsg=tsg,
         tsg_stderr=tsg_stderr,
+        tci=tci,
     )
 
 

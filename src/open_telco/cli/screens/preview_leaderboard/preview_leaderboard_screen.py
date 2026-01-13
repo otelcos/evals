@@ -128,9 +128,23 @@ class PreviewLeaderboardScreen(BaseScreen):
         user_model_names = {e.model for e in user_entries}
         merged = self._merge_entries(remote_entries, user_entries)
 
-        # Fit IRT parameters and calculate TCI for all entries at once
-        # This ensures benchmark difficulty is dynamically computed from all data
-        merged, _irt_params = calculate_all_tci(merged)
+        # Check if remote entries already have TCI from HuggingFace
+        remote_has_tci = any(e.tci is not None for e in remote_entries)
+
+        if remote_has_tci:
+            # Remote models have TCI from HuggingFace - only calculate for local models
+            # We still fit IRT on all data for proper calibration
+            entries_needing_tci = [e for e in merged if e.tci is None]
+            if entries_needing_tci:
+                # Fit IRT on full dataset, then copy TCI only to entries that need it
+                all_entries_copy, _irt_params = calculate_all_tci(merged.copy())
+                tci_map = {e.model: e.tci for e in all_entries_copy}
+                for entry in merged:
+                    if entry.tci is None and entry.model in tci_map:
+                        entry.tci = tci_map[entry.model]
+        else:
+            # Fallback: HuggingFace doesn't have TCI yet, calculate for all
+            merged, _irt_params = calculate_all_tci(merged)
 
         sorted_entries = sort_by_tci(merged)
         display_entries = self._filter_display_entries(sorted_entries, user_model_names)

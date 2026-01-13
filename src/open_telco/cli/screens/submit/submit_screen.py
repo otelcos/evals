@@ -224,11 +224,23 @@ class SubmitScreen(BaseScreen):
             e for e in remote_entries if e.model not in local_model_names
         ]
 
-        # Fit IRT on full dataset and calculate TCI
-        all_entries, _irt_params = calculate_all_tci(all_entries)
+        # Check if remote entries already have TCI from HuggingFace
+        remote_has_tci = any(e.tci is not None for e in remote_entries)
 
-        # Extract TCI for local models only
-        tci_lookup = {e.model: e.tci for e in all_entries}
+        if remote_has_tci:
+            # Remote models have TCI from HuggingFace - only calculate for local models
+            # Fit IRT on full dataset for proper calibration
+            all_entries_copy, _irt_params = calculate_all_tci(all_entries.copy())
+            # Only use calculated TCI for local models (not in HuggingFace yet)
+            tci_lookup = {
+                e.model: e.tci
+                for e in all_entries_copy
+                if e.model in local_model_names
+            }
+        else:
+            # Fallback: HuggingFace doesn't have TCI yet, calculate for all
+            all_entries, _irt_params = calculate_all_tci(all_entries)
+            tci_lookup = {e.model: e.tci for e in all_entries}
 
         # Build model list with TCI values
         models = []
