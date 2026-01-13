@@ -112,11 +112,62 @@ def _try_load_json(path: Path) -> dict | None:
         return None
 
 
+def _extract_epoch_results_from_samples(samples: list[dict]) -> list[bool]:
+    """Extract per-epoch correctness from samples array.
+
+    Args:
+        samples: List of sample dicts with epoch and scores
+
+    Returns:
+        List of booleans, one per epoch, indicating correctness (C=True, I=False)
+    """
+    epoch_results: dict[int, bool] = {}
+
+    for sample in samples:
+        epoch = sample.get("epoch", 0)
+        if epoch == 0:
+            continue
+
+        scores = sample.get("scores", {})
+        for score_data in scores.values():
+            value = score_data.get("value", "")
+            is_correct = value == "C"
+            if epoch not in epoch_results:
+                epoch_results[epoch] = is_correct
+            break
+
+    return [epoch_results[epoch] for epoch in sorted(epoch_results.keys())]
+
+
+def _extract_epoch_results_from_legacy_scores(scores: list[dict]) -> list[bool]:
+    """Extract correctness from legacy format (one file per epoch).
+
+    Args:
+        scores: List of score dicts with name and value
+
+    Returns:
+        List with single boolean if accuracy found, empty list otherwise
+    """
+    for score in scores:
+        if score.get("name") == "accuracy":
+            is_correct = score.get("value", 0) > 0
+            return [is_correct]
+    return []
+
+
 def _process_epoch_data(
     data: dict,
     task_consistency: dict[str, list[bool]],
     model: str,
 ) -> None:
+    """Extract per-epoch correctness from inspect eval JSON log.
+
+    Inspect eval with --epochs N creates ONE JSON file per task containing:
+    - results.scores[].metrics.accuracy.value: aggregated accuracy (not used)
+    - samples[]: array of per-epoch sample results
+        - sample["epoch"]: epoch number (1-N)
+        - sample["scores"]["<scorer_name>"]["value"]: "C" (correct) or "I" (incorrect)
+    """
     eval_info = data.get("eval", {})
 
     if eval_info.get("model", "") != model:
@@ -126,16 +177,22 @@ def _process_epoch_data(
     if not task_name:
         return
 
+    # Try samples array first (real inspect format)
+    samples = data.get("samples", [])
+    if samples:
+        epoch_results = _extract_epoch_results_from_samples(samples)
+        if epoch_results:
+            task_consistency.setdefault(task_name, []).extend(epoch_results)
+        return
+
+    # Fallback to legacy format (one file per epoch with direct accuracy)
     scores = data.get("results", {}).get("scores", [])
     if not scores:
         return
 
-    for score in scores:
-        if score.get("name") != "accuracy":
-            continue
-        is_correct = score.get("value", 0) > 0
-        task_consistency.setdefault(task_name, []).append(is_correct)
-        return
+    epoch_results = _extract_epoch_results_from_legacy_scores(scores)
+    if epoch_results:
+        task_consistency.setdefault(task_name, []).extend(epoch_results)
 
 
 def _parse_epoch_results(log_dir: Path, model: str) -> dict[str, list[bool]]:
@@ -180,11 +237,24 @@ def _create_fallback_result(error: str) -> FindKResult:
 
 
 def _extract_last_error_line(output: str) -> str:
+    """Extract the last non-empty line from output as error message.
+
+    Args:
+        output: Command output string
+
+    Returns:
+        Last non-empty line, or default error message if none found
+    """
+    default_error = "Find-K evaluation failed"
+
     if not output:
-        return "Find-K evaluation failed"
+        return default_error
 
     lines = [line for line in output.strip().split("\n") if line.strip()]
-    return lines[-1] if lines else "Find-K evaluation failed"
+    if not lines:
+        return default_error
+
+    return lines[-1]
 
 
 def run_find_k(

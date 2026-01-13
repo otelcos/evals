@@ -13,12 +13,6 @@ from open_telco.cli.preflight.runner import (
     PreflightRunner,
     PreflightStatus,
 )
-from open_telco.cli.preflight.stress_test import (
-    STRESS_TEST_PROMPTS,
-    StressTestResult,
-    run_stress_tests,
-    run_stress_tests_sync,
-)
 
 __all__ = [
     "BOXED_PATTERN",
@@ -28,10 +22,6 @@ __all__ = [
     "PreflightConfig",
     "PreflightRunner",
     "PreflightStatus",
-    "STRESS_TEST_PROMPTS",
-    "StressTestResult",
     "run_edge_case_validation",
-    "run_stress_tests",
-    "run_stress_tests_sync",
     "validate_boxed_response",
 ]

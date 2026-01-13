@@ -25,7 +25,7 @@ class TestModelStorage:
     ) -> None:
         """Submitting a model should call EnvManager.set() exactly once."""
         temp_env = tmp_path / ".env"
-        temp_env.write_text('OPENAI_API_KEY="test-key"\n')
+        temp_env.write_text('OPENAI_API_KEY="test-key"\n')  # pragma: allowlist secret
         monkeypatch.chdir(tmp_path)
 
         mock_set = MagicMock(return_value=Result.ok(True))
@@ -48,7 +48,7 @@ class TestModelStorage:
     ) -> None:
         """EnvManager.set() should use INSPECT_EVAL_MODEL as the env key."""
         temp_env = tmp_path / ".env"
-        temp_env.write_text('OPENAI_API_KEY="test-key"\n')
+        temp_env.write_text('OPENAI_API_KEY="test-key"\n')  # pragma: allowlist secret
         monkeypatch.chdir(tmp_path)
 
         mock_set = MagicMock(return_value=Result.ok(True))
@@ -71,7 +71,7 @@ class TestModelStorage:
     ) -> None:
         """EnvManager.set() should save the pre-filled example model value."""
         temp_env = tmp_path / ".env"
-        temp_env.write_text('OPENAI_API_KEY="test-key"\n')
+        temp_env.write_text('OPENAI_API_KEY="test-key"\n')  # pragma: allowlist secret
         monkeypatch.chdir(tmp_path)
 
         mock_set = MagicMock(return_value=Result.ok(True))
@@ -95,7 +95,7 @@ class TestModelStorage:
         """Custom model name should be saved correctly."""
         # Setup
         temp_env = tmp_path / ".env"
-        temp_env.write_text('OPENAI_API_KEY="test-key"\n')
+        temp_env.write_text('OPENAI_API_KEY="test-key"\n')  # pragma: allowlist secret
         monkeypatch.chdir(tmp_path)
 
         mock_set = MagicMock(return_value=Result.ok(True))
@@ -129,7 +129,7 @@ class TestModelStorage:
         """Empty model name should not call EnvManager.set()."""
         # Setup
         temp_env = tmp_path / ".env"
-        temp_env.write_text('OPENAI_API_KEY="test-key"\n')
+        temp_env.write_text('OPENAI_API_KEY="test-key"\n')  # pragma: allowlist secret
         monkeypatch.chdir(tmp_path)
 
         mock_set = MagicMock(return_value=Result.ok(True))
