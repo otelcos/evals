@@ -9,7 +9,6 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
-from inspect_ai.analysis import evals_df
 
 from open_telco.cli.types import Result
 
@@ -127,6 +126,8 @@ def _generate_parquet_from_logs(
     Returns:
         Parquet file content as bytes
     """
+    from inspect_ai.analysis import evals_df
+
     df = evals_df(str(log_dir))
 
     if df.empty:

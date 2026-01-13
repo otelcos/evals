@@ -11,7 +11,6 @@ from enum import Enum
 from pathlib import Path
 
 import pandas as pd
-from inspect_ai.analysis import evals_df
 from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -55,7 +54,6 @@ class Stage(Enum):
     INIT = "init"
     MINI_TEST = "mini_test"
     FIND_K = "find_k"
-    STRESS_TEST = "stress_test"
     READY = "ready"
     RUNNING_EVAL = "running_eval"
     EXPORTING = "exporting"
@@ -146,19 +144,19 @@ class TaskSelectScreen(Screen[list[str] | None]):
     #header {{
         color: {Colors.RED};
         text-style: bold;
-        padding: 0 0 2 0;
+        padding: 0 0 1 0;
         height: auto;
     }}
 
     #model-info {{
         color: {Colors.TEXT_MUTED};
-        padding: 0 2 1 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
     #task-header {{
         color: {Colors.TEXT_MUTED};
-        padding: 1 2 0 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
@@ -281,19 +279,19 @@ class EvalRunningScreen(Screen[None]):
     #header {{
         color: {Colors.RED};
         text-style: bold;
-        padding: 0 0 2 0;
+        padding: 0 0 1 0;
         height: auto;
     }}
 
     #model-info {{
         color: {Colors.TEXT_MUTED};
-        padding: 0 2 1 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
     #eval-header {{
         color: {Colors.TEXT_MUTED};
-        padding: 1 2 0 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
@@ -459,9 +457,9 @@ class EvalRunningScreen(Screen[None]):
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 cwd=OPEN_TELCO_DIR,
-                start_new_session=True,
             )
             time.sleep(0.3)
 
@@ -622,6 +620,8 @@ class EvalRunningScreen(Screen[None]):
     def _export_to_leaderboard_parquet(
         self, log_dir: str, output_path: str
     ) -> pd.DataFrame:
+        from inspect_ai.analysis import evals_df
+
         df = evals_df(log_dir)
 
         if df.empty:
@@ -957,13 +957,13 @@ class RunEvalsScreen(Screen[None]):
     #header {{
         color: {Colors.RED};
         text-style: bold;
-        padding: 0 0 2 0;
+        padding: 0 0 1 0;
         height: auto;
     }}
 
     #model-info {{
         color: {Colors.TEXT_MUTED};
-        padding: 0 2 1 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
@@ -971,7 +971,7 @@ class RunEvalsScreen(Screen[None]):
         width: 100%;
         max-width: 60;
         height: auto;
-        padding: 1 2;
+        padding: 0 2;
     }}
 
     #checklist {{
@@ -1041,7 +1041,6 @@ class RunEvalsScreen(Screen[None]):
             with Vertical(id="checklist"):
                 yield ChecklistItem("mini-open-telco", "mini_test")
                 yield ChecklistItem("find-k", "find_k")
-                yield ChecklistItem("stress-testing", "stress_test")
                 yield ChecklistItem("go", "ready")
         yield Static("", id="error-message", markup=True)
         yield Static("", id="viewer-url", markup=True)
@@ -1139,9 +1138,9 @@ class RunEvalsScreen(Screen[None]):
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 cwd=OPEN_TELCO_DIR,
-                start_new_session=True,
             )
             time.sleep(0.3)
 
@@ -1277,29 +1276,11 @@ class RunEvalsScreen(Screen[None]):
         self._selected_k = selected_k
         self._continue_after_k_selection()
 
-    @work(exclusive=True, thread=True)
     def _continue_after_k_selection(self) -> None:
         if self._cancelled:
             return
-        self.app.call_from_thread(self._set_step_status, "stress_test", "running")
-        self.app.call_from_thread(self._set_stage, Stage.STRESS_TEST)
-
-        result = self._run_stress_test()
-        if self._cancelled:
-            return
-        if not result.passed:
-            self.app.call_from_thread(self._set_step_status, "stress_test", "failed")
-            self.app.call_from_thread(
-                self._transition_to_error, result.error or "Stress test failed"
-            )
-            return
-
-        self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
-        if self._cancelled:
-            return
-
-        self.app.call_from_thread(self._set_step_status, "ready", "passed")
-        self.app.call_from_thread(self._transition_to_ready)
+        self._set_step_status("ready", "passed")
+        self._transition_to_ready()
 
     def _check_preflight_passed(self) -> bool:
         preflight_dir = OPEN_TELCO_DIR / "logs" / "preflight"
@@ -1356,7 +1337,6 @@ class RunEvalsScreen(Screen[None]):
     def _mark_all_steps_passed(self) -> None:
         self.app.call_from_thread(self._set_step_status, "mini_test", "passed")
         self.app.call_from_thread(self._set_step_status, "find_k", "passed")
-        self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
         self.app.call_from_thread(self._set_step_status, "ready", "passed")
 
     def _execute_mini_test(self) -> bool:
@@ -1461,17 +1441,6 @@ class RunEvalsScreen(Screen[None]):
         if not matches:
             return None
         return sum(float(m) for m in matches) / len(matches)
-
-    def _run_stress_test(self) -> StepResult:
-        from open_telco.cli.preflight.stress_test import run_stress_tests_sync
-
-        try:
-            result = run_stress_tests_sync(self.model)
-            if result.passed:
-                return StepResult(passed=True)
-            return StepResult(passed=False, error=result.error or "Stress test failed")
-        except Exception as e:
-            return StepResult(passed=False, error=str(e))
 
     def _run_find_k(self) -> FindKResult:
         from open_telco.cli.preflight.find_k import run_find_k_sync
@@ -1595,6 +1564,8 @@ class RunEvalsScreen(Screen[None]):
     def _export_to_leaderboard_parquet(
         self, log_dir: str, output_path: str
     ) -> pd.DataFrame:
+        from inspect_ai.analysis import evals_df
+
         df = evals_df(log_dir)
 
         if df.empty:
