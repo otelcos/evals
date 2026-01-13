@@ -9,6 +9,9 @@ import pytest
 from open_telco.cli.preflight.find_k import (
     FindKResult,
     _calculate_observed_variance,
+    _extract_epoch_results_from_legacy_scores,
+    _extract_epoch_results_from_samples,
+    _extract_last_error_line,
     _parse_epoch_results,
     calculate_theoretical_variance_reduction,
     calculate_variance_reduction,
@@ -1213,3 +1216,353 @@ class TestParseEpochResults:
 
         assert abs(observed - 2 / 3) < 0.0001
         assert optimal_k == 5
+
+
+class TestParseEpochDataRealFormat:
+    """Test parsing of REAL inspect eval JSON format with samples array.
+
+    This tests the actual JSON structure produced by `inspect eval --epochs N`,
+    which creates ONE file per task containing all epochs in a samples array.
+
+    Bug being fixed: The old code expected one file per epoch with
+    `results.scores[].name == "accuracy"`, but real format has:
+    - `samples[]` array with per-epoch results
+    - `sample["scores"]["<scorer_name>"]["value"]` = "C" (correct) or "I" (incorrect)
+    """
+
+    @staticmethod
+    def _create_real_format_log(
+        log_dir: Path,
+        model: str,
+        task: str,
+        scorer_name: str,
+        epoch_results: list[str],  # ["C", "I", "C", ...] for each epoch
+        index: int = 0,
+    ) -> None:
+        """Create a log file matching real inspect eval output format."""
+        samples = [
+            {
+                "id": 1,
+                "epoch": i + 1,
+                "scores": {scorer_name: {"value": result}},
+            }
+            for i, result in enumerate(epoch_results)
+        ]
+
+        # Calculate aggregated accuracy for results section
+        correct_count = sum(1 for r in epoch_results if r == "C")
+        accuracy = correct_count / len(epoch_results) if epoch_results else 0.0
+
+        log_data = {
+            "eval": {"model": model, "task": task},
+            "results": {
+                "scores": [
+                    {
+                        "name": scorer_name,
+                        "metrics": {
+                            "accuracy": {"name": "accuracy", "value": accuracy}
+                        },
+                    }
+                ]
+            },
+            "samples": samples,
+        }
+        log_file = log_dir / f"log_{index:03d}.json"
+        log_file.write_text(json.dumps(log_data))
+
+    def test_parses_samples_array_with_epochs(self, tmp_path: Path) -> None:
+        """Parse real inspect JSON format with samples array containing epochs.
+
+        This is the core test for the bug fix. Real inspect output has epochs
+        in samples array, not separate files.
+        """
+        # Create log with 5 epochs: C, I, C, I, C (alternating)
+        self._create_real_format_log(
+            tmp_path,
+            model="test-model",
+            task="telelogs",
+            scorer_name="telelogs_scorer",
+            epoch_results=["C", "I", "C", "I", "C"],
+        )
+
+        result = _parse_epoch_results(tmp_path, "test-model")
+
+        # Should extract per-epoch correctness: C=True, I=False
+        assert "telelogs" in result
+        assert result["telelogs"] == [True, False, True, False, True]
+
+    def test_handles_different_scorer_names(self, tmp_path: Path) -> None:
+        """Each task has a different scorer name (telelogs_scorer, telemath_scorer, etc.)."""
+        # Create logs for two different tasks with different scorer names
+        self._create_real_format_log(
+            tmp_path,
+            model="test-model",
+            task="telelogs",
+            scorer_name="telelogs_scorer",
+            epoch_results=["C", "C", "C"],
+            index=0,
+        )
+        self._create_real_format_log(
+            tmp_path,
+            model="test-model",
+            task="telemath",
+            scorer_name="telemath_scorer",
+            epoch_results=["C", "I", "C"],
+            index=1,
+        )
+
+        result = _parse_epoch_results(tmp_path, "test-model")
+
+        assert result["telelogs"] == [True, True, True]
+        assert result["telemath"] == [True, False, True]
+
+    def test_e2e_real_json_to_nonzero_variance(self, tmp_path: Path) -> None:
+        """Full pipeline: real JSON format -> parse -> find_optimal_k -> non-zero variance.
+
+        This is the end-to-end test proving the bug is fixed.
+        """
+        # Create 4 task logs mimicking real find-k run
+        # telelogs: varies (C, I, C, I, C) -> inconsistent
+        # telemath: consistent (C, C, C, C, C)
+        # teleqna: varies (I, C, I, C, I) -> inconsistent
+        # three_gpp: consistent (C, C, C, C, C)
+        self._create_real_format_log(
+            tmp_path,
+            "test-model",
+            "telelogs",
+            "telelogs_scorer",
+            ["C", "I", "C", "I", "C"],
+            index=0,
+        )
+        self._create_real_format_log(
+            tmp_path,
+            "test-model",
+            "telemath",
+            "telemath_scorer",
+            ["C", "C", "C", "C", "C"],
+            index=1,
+        )
+        self._create_real_format_log(
+            tmp_path,
+            "test-model",
+            "teleqna",
+            "teleqna_scorer",
+            ["I", "C", "I", "C", "I"],
+            index=2,
+        )
+        self._create_real_format_log(
+            tmp_path,
+            "test-model",
+            "three_gpp",
+            "three_gpp_scorer",
+            ["C", "C", "C", "C", "C"],
+            index=3,
+        )
+
+        # Parse and calculate
+        task_consistency = _parse_epoch_results(tmp_path, "test-model")
+        optimal_k, variance_reduction, observed = find_optimal_k(task_consistency)
+
+        # 2 out of 4 tasks vary -> observed = 0.5
+        assert abs(observed - 0.5) < 0.0001
+        # With 50% inconsistency, variance reduction should be positive
+        assert variance_reduction > 0
+        # K should be > 1 since there is variance to reduce
+        assert optimal_k > 1
+
+    def test_all_consistent_real_format_returns_zero_variance(
+        self, tmp_path: Path
+    ) -> None:
+        """When all tasks are consistent in real format, variance should be 0."""
+        self._create_real_format_log(
+            tmp_path,
+            "test-model",
+            "telelogs",
+            "telelogs_scorer",
+            ["C", "C", "C", "C", "C"],
+            index=0,
+        )
+        self._create_real_format_log(
+            tmp_path,
+            "test-model",
+            "telemath",
+            "telemath_scorer",
+            ["C", "C", "C", "C", "C"],
+            index=1,
+        )
+
+        task_consistency = _parse_epoch_results(tmp_path, "test-model")
+        optimal_k, variance_reduction, observed = find_optimal_k(task_consistency)
+
+        assert observed == 0.0
+        assert variance_reduction == 0.0
+        assert optimal_k == 1
+
+    def test_backwards_compatible_with_old_format(self, tmp_path: Path) -> None:
+        """Old test format (one file per epoch with direct accuracy) should still work."""
+        # This is the OLD format used in existing tests
+        for i, accuracy in enumerate([1.0, 0.0, 1.0, 0.0, 1.0]):
+            log_data = {
+                "eval": {"model": "test-model", "task": "task1"},
+                "results": {"scores": [{"name": "accuracy", "value": accuracy}]},
+            }
+            (tmp_path / f"log_{i:03d}.json").write_text(json.dumps(log_data))
+
+        result = _parse_epoch_results(tmp_path, "test-model")
+
+        # Should still parse correctly via fallback
+        assert result["task1"] == [True, False, True, False, True]
+
+    def test_filters_by_model_real_format(self, tmp_path: Path) -> None:
+        """Only parse logs matching the requested model (real format)."""
+        self._create_real_format_log(
+            tmp_path,
+            "model-a",
+            "telelogs",
+            "telelogs_scorer",
+            ["C", "C"],
+            index=0,
+        )
+        self._create_real_format_log(
+            tmp_path,
+            "model-b",
+            "telelogs",
+            "telelogs_scorer",
+            ["I", "I"],
+            index=1,
+        )
+
+        result_a = _parse_epoch_results(tmp_path, "model-a")
+        result_b = _parse_epoch_results(tmp_path, "model-b")
+
+        assert result_a["telelogs"] == [True, True]
+        assert result_b["telelogs"] == [False, False]
+
+
+class TestExtractEpochResultsFromSamples:
+    """Test _extract_epoch_results_from_samples helper function."""
+
+    def test_extracts_correct_incorrect_values(self) -> None:
+        """Should convert C to True and I to False."""
+        samples = [
+            {"epoch": 1, "scores": {"scorer": {"value": "C"}}},
+            {"epoch": 2, "scores": {"scorer": {"value": "I"}}},
+            {"epoch": 3, "scores": {"scorer": {"value": "C"}}},
+        ]
+        result = _extract_epoch_results_from_samples(samples)
+        assert result == [True, False, True]
+
+    def test_returns_sorted_by_epoch(self) -> None:
+        """Should return results sorted by epoch number."""
+        samples = [
+            {"epoch": 3, "scores": {"scorer": {"value": "C"}}},
+            {"epoch": 1, "scores": {"scorer": {"value": "I"}}},
+            {"epoch": 2, "scores": {"scorer": {"value": "C"}}},
+        ]
+        result = _extract_epoch_results_from_samples(samples)
+        assert result == [False, True, True]  # epoch 1, 2, 3
+
+    def test_skips_epoch_zero(self) -> None:
+        """Should skip samples with epoch=0."""
+        samples = [
+            {"epoch": 0, "scores": {"scorer": {"value": "C"}}},
+            {"epoch": 1, "scores": {"scorer": {"value": "I"}}},
+        ]
+        result = _extract_epoch_results_from_samples(samples)
+        assert result == [False]
+
+    def test_uses_first_sample_per_epoch(self) -> None:
+        """Should use first sample's result when multiple samples per epoch."""
+        samples = [
+            {"epoch": 1, "scores": {"scorer": {"value": "C"}}},
+            {"epoch": 1, "scores": {"scorer": {"value": "I"}}},  # ignored
+        ]
+        result = _extract_epoch_results_from_samples(samples)
+        assert result == [True]
+
+    def test_empty_samples_returns_empty_list(self) -> None:
+        """Should return empty list for empty samples."""
+        result = _extract_epoch_results_from_samples([])
+        assert result == []
+
+    def test_handles_missing_scores(self) -> None:
+        """Should handle samples without scores dict."""
+        samples = [
+            {"epoch": 1},
+            {"epoch": 2, "scores": {"scorer": {"value": "C"}}},
+        ]
+        result = _extract_epoch_results_from_samples(samples)
+        assert result == [True]
+
+
+class TestExtractEpochResultsFromLegacyScores:
+    """Test _extract_epoch_results_from_legacy_scores helper function."""
+
+    def test_extracts_accuracy_score(self) -> None:
+        """Should extract accuracy score and convert to boolean."""
+        scores = [{"name": "accuracy", "value": 1.0}]
+        result = _extract_epoch_results_from_legacy_scores(scores)
+        assert result == [True]
+
+    def test_zero_accuracy_is_false(self) -> None:
+        """Zero accuracy should return False."""
+        scores = [{"name": "accuracy", "value": 0.0}]
+        result = _extract_epoch_results_from_legacy_scores(scores)
+        assert result == [False]
+
+    def test_positive_accuracy_is_true(self) -> None:
+        """Any positive accuracy should return True."""
+        scores = [{"name": "accuracy", "value": 0.001}]
+        result = _extract_epoch_results_from_legacy_scores(scores)
+        assert result == [True]
+
+    def test_ignores_non_accuracy_scores(self) -> None:
+        """Should only look for accuracy score."""
+        scores = [{"name": "f1", "value": 0.9}]
+        result = _extract_epoch_results_from_legacy_scores(scores)
+        assert result == []
+
+    def test_empty_scores_returns_empty_list(self) -> None:
+        """Should return empty list for empty scores."""
+        result = _extract_epoch_results_from_legacy_scores([])
+        assert result == []
+
+    def test_returns_first_accuracy_found(self) -> None:
+        """Should return first accuracy score if multiple exist."""
+        scores = [
+            {"name": "accuracy", "value": 1.0},
+            {"name": "accuracy", "value": 0.0},
+        ]
+        result = _extract_epoch_results_from_legacy_scores(scores)
+        assert result == [True]
+
+
+class TestExtractLastErrorLine:
+    """Test _extract_last_error_line helper function."""
+
+    def test_returns_last_line(self) -> None:
+        """Should return last non-empty line."""
+        output = "line1\nline2\nlast line"
+        result = _extract_last_error_line(output)
+        assert result == "last line"
+
+    def test_empty_output_returns_default(self) -> None:
+        """Empty output should return default error message."""
+        result = _extract_last_error_line("")
+        assert result == "Find-K evaluation failed"
+
+    def test_whitespace_only_returns_default(self) -> None:
+        """Whitespace-only output should return default."""
+        result = _extract_last_error_line("   \n\n   ")
+        assert result == "Find-K evaluation failed"
+
+    def test_skips_empty_lines(self) -> None:
+        """Should skip empty lines and return last non-empty."""
+        output = "line1\n\nlast line\n\n"
+        result = _extract_last_error_line(output)
+        assert result == "last line"
+
+    def test_single_line(self) -> None:
+        """Should handle single line input."""
+        result = _extract_last_error_line("only line")
+        assert result == "only line"

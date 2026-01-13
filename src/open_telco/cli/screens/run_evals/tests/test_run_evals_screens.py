@@ -85,8 +85,8 @@ class TestRunEvalsScreen:
     """Test RunEvalsScreen functionality."""
 
     @pytest.mark.asyncio
-    async def test_screen_has_four_checklist_items(self) -> None:
-        """Screen should have exactly 4 checklist items."""
+    async def test_screen_has_three_checklist_items(self) -> None:
+        """Screen should have exactly 3 checklist items."""
         app = OpenTelcoApp()
         async with app.run_test() as pilot:
             with patch(
@@ -100,7 +100,7 @@ class TestRunEvalsScreen:
 
                 assert isinstance(pilot.app.screen, RunEvalsScreen)
                 items = list(pilot.app.screen.query(ChecklistItem))
-                assert len(items) == 4
+                assert len(items) == 3
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -108,7 +108,6 @@ class TestRunEvalsScreen:
         [
             pytest.param("mini_test", id="mini_test"),
             pytest.param("find_k", id="find_k"),
-            pytest.param("stress_test", id="stress_test"),
             pytest.param("ready", id="ready"),
         ],
     )
@@ -408,8 +407,6 @@ class TestScoreParsing:
 
     def test_parse_score_with_accuracy(self) -> None:
         """Should parse accuracy value from output."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import RunEvalsScreen
-
         screen = RunEvalsScreen()
         screen.model = "test"
 
@@ -420,8 +417,6 @@ class TestScoreParsing:
 
     def test_parse_score_colon_format(self) -> None:
         """Should parse accuracy with colon format."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import RunEvalsScreen
-
         screen = RunEvalsScreen()
         screen.model = "test"
 
@@ -431,8 +426,6 @@ class TestScoreParsing:
 
     def test_parse_score_no_match(self) -> None:
         """Should return None if no accuracy found."""
-        from open_telco.cli.screens.run_evals.run_evals_screen import RunEvalsScreen
-
         screen = RunEvalsScreen()
         screen.model = "test"
 
@@ -455,7 +448,7 @@ class TestTaskPaths:
     )
     def test_task_path_exists(self, task_path: str) -> None:
         """Task path should exist as a file in src/open_telco."""
-        project_root = Path(__file__).parent.parent.parent
+        project_root = Path(__file__).parent.parent.parent.parent.parent.parent.parent
         full_path = project_root / "src" / "open_telco" / task_path
         assert full_path.exists(), f"Task path does not exist: {full_path}"
         assert full_path.is_file(), f"Task path is not a file: {full_path}"
@@ -477,7 +470,7 @@ class TestTaskPaths:
         """Verify the path calculation in _run_mini_test finds correct directory."""
         # Simulate the path calculation from run_evals_screen.py
         run_evals_screen_path = (
-            Path(__file__).parent.parent.parent
+            Path(__file__).parent.parent.parent.parent.parent.parent.parent
             / "src"
             / "open_telco"
             / "cli"

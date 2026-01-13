@@ -11,17 +11,21 @@ from pathlib import Path
 def start_process(
     cmd: list[str],
     cwd: Path | None = None,
-    start_new_session: bool = True,
 ) -> subprocess.Popen | None:
-    """Start a subprocess. Returns None on failure."""
+    """Start a subprocess. Returns None on failure.
+
+    Note: We use stdin=subprocess.DEVNULL to prevent subprocesses from
+    interfering with the terminal. Do NOT use start_new_session=True as
+    it seizes terminal control and breaks Textual's input handling.
+    """
     try:
         return subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
             text=True,
             cwd=cwd,
-            start_new_session=start_new_session,
         )
     except OSError:
         return None

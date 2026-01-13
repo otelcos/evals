@@ -1,12 +1,9 @@
-"""Tests for pre-flight testing functionality."""
-
-from typing import Any
+"""Tests for pre-flight edge case validation functionality."""
 
 import pytest
 
 from open_telco.cli.preflight import (
     EDGE_CASE_PROMPTS,
-    STRESS_TEST_PROMPTS,
     EdgeCasePrompt,
     PreflightConfig,
     PreflightStatus,
@@ -367,86 +364,3 @@ class TestEdgeCasePrompts:
         """Test that basic boxed prompt exists."""
         names = [p.name for p in EDGE_CASE_PROMPTS]
         assert "basic_boxed" in names
-
-
-# ============================================================================
-# TestStressTestEnvPath
-# ============================================================================
-
-
-class TestStressTestEnvPath:
-    """Test stress test .env path configuration."""
-
-    def test_env_path_calculation_is_correct(self) -> None:
-        """Verify the .env path calculation in stress_test.py finds project root."""
-        from pathlib import Path
-
-        # Simulate the path calculation from stress_test.py
-        stress_test_path = (
-            Path(__file__).parent.parent.parent
-            / "src"
-            / "open_telco"
-            / "cli"
-            / "preflight"
-            / "stress_test.py"
-        )
-
-        # The calculation in stress_test.py: Path(__file__).parent.parent.parent.parent.parent
-        # From stress_test.py: cli/preflight/stress_test.py
-        # .parent = preflight/
-        # .parent.parent = cli/
-        # .parent.parent.parent = open_telco/
-        # .parent.parent.parent.parent = src/
-        # .parent.parent.parent.parent.parent = project_root
-        project_root = stress_test_path.parent.parent.parent.parent.parent
-
-        assert project_root.name == "open_telco", (
-            f"Expected directory name 'open_telco' (project root), got '{project_root.name}'"
-        )
-
-        # Note: .env may not exist in CI, so we just verify the path calculation is correct
-        # by checking that pyproject.toml exists (which is always present)
-        pyproject_path = project_root / "pyproject.toml"
-        assert pyproject_path.exists(), (
-            f"pyproject.toml not found at {pyproject_path}. "
-            f"The project root calculation may be wrong."
-        )
-
-    def test_stress_test_prompts_minimum_count(self) -> None:
-        """Verify stress test prompts has at least 4 prompts."""
-        assert len(STRESS_TEST_PROMPTS) >= 4, (
-            "Should have at least 4 stress test prompts"
-        )
-
-
-# ============================================================================
-# TestStressTestPromptStructure
-# ============================================================================
-
-
-@pytest.mark.parametrize(
-    "prompt",
-    [pytest.param(p, id=p["name"]) for p in STRESS_TEST_PROMPTS],
-)
-class TestStressTestPromptStructure:
-    """Test stress test prompt structure validation."""
-
-    def test_prompt_has_name_field(self, prompt: dict[str, Any]) -> None:
-        """Each prompt should have a name field."""
-        assert "name" in prompt
-
-    def test_prompt_has_prompt_field(self, prompt: dict[str, Any]) -> None:
-        """Each prompt should have a prompt field."""
-        assert "prompt" in prompt
-
-    def test_prompt_has_timeout_field(self, prompt: dict[str, Any]) -> None:
-        """Each prompt should have a timeout field."""
-        assert "timeout" in prompt
-
-    def test_prompt_timeout_is_integer(self, prompt: dict[str, Any]) -> None:
-        """Timeout should be an integer."""
-        assert isinstance(prompt["timeout"], int)
-
-    def test_prompt_timeout_is_positive(self, prompt: dict[str, Any]) -> None:
-        """Timeout should be positive."""
-        assert prompt["timeout"] > 0
