@@ -120,11 +120,13 @@ def fit_irt_parameters(
 
     # Parameter vector layout: [D_0..D_B, alpha_0..alpha_B, C_0..C_M]
     # Initial guesses: difficulties at 0, slopes at 1, capabilities at 0
-    x0 = np.concatenate([
-        np.zeros(n_benchmarks),  # D_b: start at 0 (average difficulty)
-        np.ones(n_benchmarks),  # alpha_b: start at 1
-        np.zeros(n_models),  # C_m: start at 0 (average capability)
-    ])
+    x0 = np.concatenate(
+        [
+            np.zeros(n_benchmarks),  # D_b: start at 0 (average difficulty)
+            np.ones(n_benchmarks),  # alpha_b: start at 1
+            np.zeros(n_models),  # C_m: start at 0 (average capability)
+        ]
+    )
 
     def objective(x: np.ndarray) -> float:  # type: ignore[type-arg]
         """Compute loss for IRT model fitting."""

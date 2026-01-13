@@ -1,4 +1,5 @@
 """Run-evals screen with checklist UI."""
+
 from __future__ import annotations
 
 import json
@@ -54,7 +55,6 @@ class Stage(Enum):
     INIT = "init"
     MINI_TEST = "mini_test"
     FIND_K = "find_k"
-    STRESS_TEST = "stress_test"
     READY = "ready"
     RUNNING_EVAL = "running_eval"
     EXPORTING = "exporting"
@@ -122,7 +122,9 @@ class TaskChecklistItem(Static):
         self.display_name = display_name
 
     def render(self) -> str:
-        checkbox = f"[{Colors.RED}]●[/]" if self.selected else f"[{Colors.TEXT_DISABLED}]○[/]"
+        checkbox = (
+            f"[{Colors.RED}]●[/]" if self.selected else f"[{Colors.TEXT_DISABLED}]○[/]"
+        )
         style = f"bold {Colors.TEXT_PRIMARY}" if self.highlighted else Colors.TEXT_MUTED
         return f"  {checkbox} [{style}]{self.display_name}[/]"
 
@@ -143,19 +145,19 @@ class TaskSelectScreen(Screen[list[str] | None]):
     #header {{
         color: {Colors.RED};
         text-style: bold;
-        padding: 0 0 2 0;
+        padding: 0 0 1 0;
         height: auto;
     }}
 
     #model-info {{
         color: {Colors.TEXT_MUTED};
-        padding: 0 2 1 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
     #task-header {{
         color: {Colors.TEXT_MUTED};
-        padding: 1 2 0 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
@@ -199,8 +201,16 @@ class TaskSelectScreen(Screen[list[str] | None]):
 
     def compose(self) -> ComposeResult:
         yield Static("run-evals", id="header")
-        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]", id="model-info", markup=True)
-        yield Static(f"[{Colors.TEXT_MUTED}]select evals to run:[/]", id="task-header", markup=True)
+        yield Static(
+            f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]",
+            id="model-info",
+            markup=True,
+        )
+        yield Static(
+            f"[{Colors.TEXT_MUTED}]select evals to run:[/]",
+            id="task-header",
+            markup=True,
+        )
         with Vertical(id="task-list"):
             for i, task in enumerate(ALL_TASKS):
                 display_name = TASK_DISPLAY_NAMES.get(task, task)
@@ -270,19 +280,19 @@ class EvalRunningScreen(Screen[None]):
     #header {{
         color: {Colors.RED};
         text-style: bold;
-        padding: 0 0 2 0;
+        padding: 0 0 1 0;
         height: auto;
     }}
 
     #model-info {{
         color: {Colors.TEXT_MUTED};
-        padding: 0 2 1 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
     #eval-header {{
         color: {Colors.TEXT_MUTED};
-        padding: 1 2 0 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
@@ -340,8 +350,14 @@ class EvalRunningScreen(Screen[None]):
 
     def compose(self) -> ComposeResult:
         yield Static("run-evals", id="header")
-        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]", id="model-info", markup=True)
-        yield Static(f"[{Colors.TEXT_MUTED}]running evals:[/]", id="eval-header", markup=True)
+        yield Static(
+            f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]",
+            id="model-info",
+            markup=True,
+        )
+        yield Static(
+            f"[{Colors.TEXT_MUTED}]running evals:[/]", id="eval-header", markup=True
+        )
         with Vertical(id="eval-list"):
             for task in self.tasks:
                 display_name = TASK_DISPLAY_NAMES.get(task, task)
@@ -349,10 +365,14 @@ class EvalRunningScreen(Screen[None]):
         yield Static("", id="viewer-url", markup=True)
         yield Static("", id="error-message", markup=True)
         yield Static("", id="spacer")
-        yield Static(f"[{Colors.TEXT_MUTED}]q[/] cancel-unsafe", id="footer", markup=True)
+        yield Static(
+            f"[{Colors.TEXT_MUTED}]q[/] cancel-unsafe", id="footer", markup=True
+        )
 
     def on_mount(self) -> None:
-        self._animation_timer = self.set_interval(Animation.INTERVAL_SECONDS, self._animate_dots)
+        self._animation_timer = self.set_interval(
+            Animation.INTERVAL_SECONDS, self._animate_dots
+        )
         self._start_viewer()
         self._run_next_task()
 
@@ -399,7 +419,9 @@ class EvalRunningScreen(Screen[None]):
             return
         kill_process_group(pgid, signal.SIGKILL)
 
-    def _wait_for_process(self, process: subprocess.Popen[str], timeout: int | None) -> bool:
+    def _wait_for_process(
+        self, process: subprocess.Popen[str], timeout: int | None
+    ) -> bool:
         try:
             process.wait(timeout=timeout)
             return True
@@ -418,10 +440,17 @@ class EvalRunningScreen(Screen[None]):
         log_dir.mkdir(parents=True, exist_ok=True)
 
         cmd = [
-            "uv", "run", "inspect", "view", "start",
-            "--log-dir", "logs/leaderboard",
-            "--host", "127.0.0.1",
-            "--port", str(Ports.INSPECT_VIEWER),
+            "uv",
+            "run",
+            "inspect",
+            "view",
+            "start",
+            "--log-dir",
+            "logs/leaderboard",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(Ports.INSPECT_VIEWER),
         ]
 
         try:
@@ -429,9 +458,9 @@ class EvalRunningScreen(Screen[None]):
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 cwd=OPEN_TELCO_DIR,
-                start_new_session=True,
             )
             time.sleep(0.3)
 
@@ -484,21 +513,32 @@ class EvalRunningScreen(Screen[None]):
         log_dir.mkdir(parents=True, exist_ok=True)
 
         cmd = [
-            "uv", "run", "inspect", "eval",
+            "uv",
+            "run",
+            "inspect",
+            "eval",
             task,
-            "--model", self.model,
-            "--epochs", str(self.selected_k),
-            "--log-dir", "logs/leaderboard",
-            "--log-format", "json",
+            "--model",
+            self.model,
+            "--epochs",
+            str(self.selected_k),
+            "--log-dir",
+            "logs/leaderboard",
+            "--log-format",
+            "json",
         ]
 
         process = start_process(cmd, cwd=OPEN_TELCO_DIR)
         if process is None:
-            self.app.call_from_thread(self._on_task_failed, task, "Failed to start process")
+            self.app.call_from_thread(
+                self._on_task_failed, task, "Failed to start process"
+            )
             return
 
         self._current_process = process
-        stdout, stderr, timed_out = communicate_with_timeout(process, Timeouts.FULL_EVAL)
+        stdout, stderr, timed_out = communicate_with_timeout(
+            process, Timeouts.FULL_EVAL
+        )
         self._current_process = None
 
         if timed_out:
@@ -536,7 +576,9 @@ class EvalRunningScreen(Screen[None]):
             return "Eval failed"
         return lines[-1]
 
-    def _on_task_complete(self, task: str, score: float | None, stderr_val: float | None = None) -> None:
+    def _on_task_complete(
+        self, task: str, score: float | None, stderr_val: float | None = None
+    ) -> None:
         item = self._find_checklist_item(task)
         if item:
             item.status = "passed"
@@ -576,8 +618,10 @@ class EvalRunningScreen(Screen[None]):
         except Exception as e:
             self.app.call_from_thread(self._on_export_error, str(e))
 
-    def _export_to_leaderboard_parquet(self, log_dir: str, output_path: str) -> pd.DataFrame:
-        df = evals_df(log_dir)
+    def _export_to_leaderboard_parquet(
+        self, log_dir: str, output_path: str
+    ) -> pd.DataFrame:
+        df = evals_df(log_dir, quiet=True)
 
         if df.empty:
             raise ValueError(f"No eval logs found in {log_dir}")
@@ -668,7 +712,12 @@ class EvalRunningScreen(Screen[None]):
         for _, row in df.iterrows():
             lines.append(f"model: {row['model']}")
             lines.append("")
-            for col, display in [("teleqna", "teleqna"), ("telelogs", "telelogs"), ("telemath", "telemath"), ("3gpp_tsg", "3gpp_tsg")]:
+            for col, display in [
+                ("teleqna", "teleqna"),
+                ("telelogs", "telelogs"),
+                ("telemath", "telemath"),
+                ("3gpp_tsg", "3gpp_tsg"),
+            ]:
                 lines.append(self._format_score_line(row.get(col), display))
             lines.append("")
 
@@ -700,7 +749,9 @@ class EvalRunningScreen(Screen[None]):
         )
 
     def _on_export_error(self, error: str) -> None:
-        self.query_one("#error-message", Static).update(f"[{Colors.ERROR}]Export failed: {error}[/]")
+        self.query_one("#error-message", Static).update(
+            f"[{Colors.ERROR}]Export failed: {error}[/]"
+        )
         self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]q[/] back")
 
     def action_cancel(self) -> None:
@@ -711,9 +762,11 @@ class EvalRunningScreen(Screen[None]):
     def action_confirm(self) -> None:
         if not self._completed:
             return
-        # Pop EvalRunningScreen and RunEvalsScreen to return to main menu
-        self.app.pop_screen()
-        self.app.pop_screen()
+        # Return to main menu using switch_screen to avoid race conditions
+        # from multiple pop_screen() calls
+        from open_telco.cli.screens.main_menu import MainMenuScreen
+
+        self.app.switch_screen(MainMenuScreen())
 
 
 class KSelectionScreen(Screen[int | None]):
@@ -813,7 +866,11 @@ class KSelectionScreen(Screen[int | None]):
 
     def compose(self) -> ComposeResult:
         yield Static("find-k", id="header")
-        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]", id="model-info", markup=True)
+        yield Static(
+            f"model: [{Colors.TEXT_PRIMARY}]{self.model}[/]",
+            id="model-info",
+            markup=True,
+        )
         yield Static(
             f"[{Colors.TEXT_PRIMARY}]recommended K: [bold]{self.optimal_k}[/bold][/]",
             id="k-info",
@@ -854,13 +911,23 @@ class KSelectionScreen(Screen[int | None]):
             f"[{Colors.SUCCESS}]✓[/]" if r else f"[{Colors.ERROR}]✗[/]" for r in results
         )
         is_consistent = len(set(results)) == 1
-        status = f"[{Colors.SUCCESS}]consistent[/]" if is_consistent else f"[{Colors.WARNING}]varies[/]"
-        return Static(f"  {task:12} {consistency_str}  {status}", markup=True, classes="consistency-item")
+        status = (
+            f"[{Colors.SUCCESS}]consistent[/]"
+            if is_consistent
+            else f"[{Colors.WARNING}]varies[/]"
+        )
+        return Static(
+            f"  {task:12} {consistency_str}  {status}",
+            markup=True,
+            classes="consistency-item",
+        )
 
     def _update_k_display(self) -> None:
         from open_telco.cli.preflight.find_k import calculate_variance_reduction
 
-        new_reduction = calculate_variance_reduction(self.selected_k, self.observed_variance)
+        new_reduction = calculate_variance_reduction(
+            self.selected_k, self.observed_variance
+        )
         self.query_one("#k-info", Static).update(
             f"[{Colors.TEXT_PRIMARY}]selected K: [bold]{self.selected_k}[/bold][/]"
         )
@@ -891,13 +958,13 @@ class RunEvalsScreen(Screen[None]):
     #header {{
         color: {Colors.RED};
         text-style: bold;
-        padding: 0 0 2 0;
+        padding: 0 0 1 0;
         height: auto;
     }}
 
     #model-info {{
         color: {Colors.TEXT_MUTED};
-        padding: 0 2 1 2;
+        padding: 0 2 0 2;
         height: auto;
     }}
 
@@ -905,7 +972,7 @@ class RunEvalsScreen(Screen[None]):
         width: 100%;
         max-width: 60;
         height: auto;
-        padding: 1 2;
+        padding: 0 2;
     }}
 
     #checklist {{
@@ -966,12 +1033,15 @@ class RunEvalsScreen(Screen[None]):
     def compose(self) -> ComposeResult:
         yield Static("run-evals", id="header")
         model_display = self.model if self.model else "not-configured"
-        yield Static(f"model: [{Colors.TEXT_PRIMARY}]{model_display}[/]", id="model-info", markup=True)
+        yield Static(
+            f"model: [{Colors.TEXT_PRIMARY}]{model_display}[/]",
+            id="model-info",
+            markup=True,
+        )
         with Container(id="checklist-container"):
             with Vertical(id="checklist"):
                 yield ChecklistItem("mini-open-telco", "mini_test")
                 yield ChecklistItem("find-k", "find_k")
-                yield ChecklistItem("stress-testing", "stress_test")
                 yield ChecklistItem("go", "ready")
         yield Static("", id="error-message", markup=True)
         yield Static("", id="viewer-url", markup=True)
@@ -979,7 +1049,9 @@ class RunEvalsScreen(Screen[None]):
         yield Static(f"[{Colors.TEXT_MUTED}]q[/] cancel", id="footer", markup=True)
 
     def on_mount(self) -> None:
-        self._animation_timer = self.set_interval(Animation.INTERVAL_SECONDS, self._animate_dots)
+        self._animation_timer = self.set_interval(
+            Animation.INTERVAL_SECONDS, self._animate_dots
+        )
         if not self.model:
             self._transition_to_error("no-model-configured. use set-model first.")
             return
@@ -1028,7 +1100,9 @@ class RunEvalsScreen(Screen[None]):
             return
         kill_process_group(pgid, signal.SIGKILL)
 
-    def _wait_for_process(self, process: subprocess.Popen[str], timeout: int | None) -> bool:
+    def _wait_for_process(
+        self, process: subprocess.Popen[str], timeout: int | None
+    ) -> bool:
         try:
             process.wait(timeout=timeout)
             return True
@@ -1047,10 +1121,17 @@ class RunEvalsScreen(Screen[None]):
         log_dir.mkdir(parents=True, exist_ok=True)
 
         cmd = [
-            "uv", "run", "inspect", "view", "start",
-            "--log-dir", "logs/leaderboard",
-            "--host", "127.0.0.1",
-            "--port", str(Ports.INSPECT_VIEWER),
+            "uv",
+            "run",
+            "inspect",
+            "view",
+            "start",
+            "--log-dir",
+            "logs/leaderboard",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(Ports.INSPECT_VIEWER),
         ]
 
         try:
@@ -1058,15 +1139,17 @@ class RunEvalsScreen(Screen[None]):
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
                 text=True,
                 cwd=OPEN_TELCO_DIR,
-                start_new_session=True,
             )
             time.sleep(0.3)
 
             if self._viewer_process.poll() is not None:
                 _, stderr = self._viewer_process.communicate()
-                error_msg = stderr.strip().split("\n")[-1] if stderr else "Unknown error"
+                error_msg = (
+                    stderr.strip().split("\n")[-1] if stderr else "Unknown error"
+                )
                 self._viewer_process = None
                 self._update_viewer_url_error(error_msg)
                 return False
@@ -1084,7 +1167,9 @@ class RunEvalsScreen(Screen[None]):
         )
 
     def _update_viewer_url_error(self, error: str) -> None:
-        self.query_one("#viewer-url", Static).update(f"[{Colors.ERROR}]viewer failed: {error}[/]")
+        self.query_one("#viewer-url", Static).update(
+            f"[{Colors.ERROR}]viewer failed: {error}[/]"
+        )
 
     def _animate_dots(self) -> bool:
         has_running = self._animate_checklist_items()
@@ -1104,7 +1189,9 @@ class RunEvalsScreen(Screen[None]):
     def _animate_full_eval_status(self) -> bool:
         if self.stage != Stage.RUNNING_EVAL:
             return False
-        self._full_eval_dot_count = (self._full_eval_dot_count + 1) % Animation.DOT_CYCLE_LENGTH
+        self._full_eval_dot_count = (
+            self._full_eval_dot_count + 1
+        ) % Animation.DOT_CYCLE_LENGTH
         self.query_one("#error-message", Static).update(self._render_full_eval_status())
         return True
 
@@ -1190,27 +1277,11 @@ class RunEvalsScreen(Screen[None]):
         self._selected_k = selected_k
         self._continue_after_k_selection()
 
-    @work(exclusive=True, thread=True)
     def _continue_after_k_selection(self) -> None:
         if self._cancelled:
             return
-        self.app.call_from_thread(self._set_step_status, "stress_test", "running")
-        self.app.call_from_thread(self._set_stage, Stage.STRESS_TEST)
-
-        result = self._run_stress_test()
-        if self._cancelled:
-            return
-        if not result.passed:
-            self.app.call_from_thread(self._set_step_status, "stress_test", "failed")
-            self.app.call_from_thread(self._transition_to_error, result.error or "Stress test failed")
-            return
-
-        self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
-        if self._cancelled:
-            return
-
-        self.app.call_from_thread(self._set_step_status, "ready", "passed")
-        self.app.call_from_thread(self._transition_to_ready)
+        self._set_step_status("ready", "passed")
+        self._transition_to_ready()
 
     def _check_preflight_passed(self) -> bool:
         preflight_dir = OPEN_TELCO_DIR / "logs" / "preflight"
@@ -1267,7 +1338,6 @@ class RunEvalsScreen(Screen[None]):
     def _mark_all_steps_passed(self) -> None:
         self.app.call_from_thread(self._set_step_status, "mini_test", "passed")
         self.app.call_from_thread(self._set_step_status, "find_k", "passed")
-        self.app.call_from_thread(self._set_step_status, "stress_test", "passed")
         self.app.call_from_thread(self._set_step_status, "ready", "passed")
 
     def _execute_mini_test(self) -> bool:
@@ -1279,7 +1349,9 @@ class RunEvalsScreen(Screen[None]):
             return False
         if not result.passed:
             self.app.call_from_thread(self._set_step_status, "mini_test", "failed")
-            self.app.call_from_thread(self._transition_to_error, result.error or "Mini test failed")
+            self.app.call_from_thread(
+                self._transition_to_error, result.error or "Mini test failed"
+            )
             return False
 
         self.app.call_from_thread(self._set_step_status, "mini_test", "passed")
@@ -1299,7 +1371,9 @@ class RunEvalsScreen(Screen[None]):
             return None
         if not find_k_result.passed:
             self.app.call_from_thread(self._set_step_status, "find_k", "failed")
-            self.app.call_from_thread(self._transition_to_error, find_k_result.error or "Find-K failed")
+            self.app.call_from_thread(
+                self._transition_to_error, find_k_result.error or "Find-K failed"
+            )
             return None
 
         self.app.call_from_thread(self._set_step_status, "find_k", "passed")
@@ -1319,12 +1393,19 @@ class RunEvalsScreen(Screen[None]):
             return StepResult(passed=False, error="cancelled")
 
         cmd = [
-            "uv", "run", "inspect", "eval",
+            "uv",
+            "run",
+            "inspect",
+            "eval",
             *self.tasks,
-            "--model", self.model,
-            "--limit", "1",
-            "--log-dir", "logs/preflight",
-            "--log-format", "json",
+            "--model",
+            self.model,
+            "--limit",
+            "1",
+            "--log-dir",
+            "logs/preflight",
+            "--log-format",
+            "json",
         ]
 
         process = start_process(cmd, cwd=OPEN_TELCO_DIR)
@@ -1332,7 +1413,9 @@ class RunEvalsScreen(Screen[None]):
             return StepResult(passed=False, error="Failed to start process")
 
         self._current_process = process
-        stdout, stderr, timed_out = communicate_with_timeout(process, Timeouts.MINI_TEST)
+        stdout, stderr, timed_out = communicate_with_timeout(
+            process, Timeouts.MINI_TEST
+        )
         self._current_process = None
 
         if timed_out:
@@ -1340,7 +1423,9 @@ class RunEvalsScreen(Screen[None]):
         if self._cancelled:
             return StepResult(passed=False, error="cancelled")
         if process.returncode != 0:
-            return StepResult(passed=False, error=self._extract_last_error_line(stderr or stdout))
+            return StepResult(
+                passed=False, error=self._extract_last_error_line(stderr or stdout)
+            )
 
         return StepResult(passed=True, score=self._parse_score(stdout + stderr))
 
@@ -1357,17 +1442,6 @@ class RunEvalsScreen(Screen[None]):
         if not matches:
             return None
         return sum(float(m) for m in matches) / len(matches)
-
-    def _run_stress_test(self) -> StepResult:
-        from open_telco.cli.preflight.stress_test import run_stress_tests_sync
-
-        try:
-            result = run_stress_tests_sync(self.model)
-            if result.passed:
-                return StepResult(passed=True)
-            return StepResult(passed=False, error=result.error or "Stress test failed")
-        except Exception as e:
-            return StepResult(passed=False, error=str(e))
 
     def _run_find_k(self) -> FindKResult:
         from open_telco.cli.preflight.find_k import run_find_k_sync
@@ -1406,7 +1480,9 @@ class RunEvalsScreen(Screen[None]):
         self._resume_timer()
 
         self.query_one("#error-message", Static).update(self._render_full_eval_status())
-        self.query_one("#footer", Static).update(f"[{Colors.TEXT_MUTED}]q[/] cancel-unsafe")
+        self.query_one("#footer", Static).update(
+            f"[{Colors.TEXT_MUTED}]q[/] cancel-unsafe"
+        )
         self._run_full_eval()
 
     @work(exclusive=True, thread=True)
@@ -1415,38 +1491,55 @@ class RunEvalsScreen(Screen[None]):
             return
 
         cmd = [
-            "uv", "run", "inspect", "eval",
+            "uv",
+            "run",
+            "inspect",
+            "eval",
             *self.tasks,
-            "--model", self.model,
-            "--epochs", str(self._selected_k),
-            "--log-dir", "logs/leaderboard",
-            "--log-format", "json",
+            "--model",
+            self.model,
+            "--epochs",
+            str(self._selected_k),
+            "--log-dir",
+            "logs/leaderboard",
+            "--log-format",
+            "json",
         ]
 
         process = start_process(cmd, cwd=OPEN_TELCO_DIR)
         if process is None:
-            self.app.call_from_thread(self._transition_to_error, "Failed to start evaluation process")
+            self.app.call_from_thread(
+                self._transition_to_error, "Failed to start evaluation process"
+            )
             return
 
         self._current_process = process
-        stdout, stderr, timed_out = communicate_with_timeout(process, Timeouts.FULL_EVAL)
+        stdout, stderr, timed_out = communicate_with_timeout(
+            process, Timeouts.FULL_EVAL
+        )
         self._current_process = None
 
         if timed_out:
-            self.app.call_from_thread(self._transition_to_error, "Evaluation timed out after 1 hour")
+            self.app.call_from_thread(
+                self._transition_to_error, "Evaluation timed out after 1 hour"
+            )
             return
         if self._cancelled:
             return
         if process.returncode != 0:
             error_msg = self._extract_last_error_line(stderr or stdout)
-            self.app.call_from_thread(self._transition_to_error, f"Evaluation failed: {error_msg}")
+            self.app.call_from_thread(
+                self._transition_to_error, f"Evaluation failed: {error_msg}"
+            )
             return
 
         self.app.call_from_thread(self._export_and_show_results)
 
     def _export_and_show_results(self) -> None:
         self.stage = Stage.EXPORTING
-        self.query_one("#error-message", Static).update(f"[{Colors.TEXT_MUTED}]exporting-results...[/]")
+        self.query_one("#error-message", Static).update(
+            f"[{Colors.TEXT_MUTED}]exporting-results...[/]"
+        )
         self._do_export()
 
     @work(exclusive=True, thread=True)
@@ -1461,14 +1554,18 @@ class RunEvalsScreen(Screen[None]):
             df = self._export_to_leaderboard_parquet(str(log_dir), str(output_path))
             preview = self._format_results_preview(df)
             self.app.call_from_thread(
-                self._on_export_success, preview, str(output_path.relative_to(OPEN_TELCO_DIR))
+                self._on_export_success,
+                preview,
+                str(output_path.relative_to(OPEN_TELCO_DIR)),
             )
 
         except Exception as e:
             self.app.call_from_thread(self._transition_to_error, f"Export failed: {e}")
 
-    def _export_to_leaderboard_parquet(self, log_dir: str, output_path: str) -> pd.DataFrame:
-        df = evals_df(log_dir)
+    def _export_to_leaderboard_parquet(
+        self, log_dir: str, output_path: str
+    ) -> pd.DataFrame:
+        df = evals_df(log_dir, quiet=True)
 
         if df.empty:
             raise ValueError(f"No eval logs found in {log_dir}")
@@ -1559,7 +1656,12 @@ class RunEvalsScreen(Screen[None]):
         for _, row in df.iterrows():
             lines.append(f"model: {row['model']}")
             lines.append("")
-            for col, display in [("teleqna", "teleqna"), ("telelogs", "telelogs"), ("telemath", "telemath"), ("3gpp_tsg", "3gpp_tsg")]:
+            for col, display in [
+                ("teleqna", "teleqna"),
+                ("telelogs", "telelogs"),
+                ("telemath", "telemath"),
+                ("3gpp_tsg", "3gpp_tsg"),
+            ]:
                 lines.append(self._format_score_line(row.get(col), display))
             lines.append("")
 
@@ -1583,7 +1685,9 @@ class RunEvalsScreen(Screen[None]):
 
     def _on_export_success(self, preview: str, output_path: str) -> None:
         self.stage = Stage.COMPLETE
-        formatted_lines = [self._colorize_preview_line(line) for line in preview.strip().split("\n")]
+        formatted_lines = [
+            self._colorize_preview_line(line) for line in preview.strip().split("\n")
+        ]
         formatted_preview = "\n".join(formatted_lines)
 
         self.query_one("#error-message", Static).update(

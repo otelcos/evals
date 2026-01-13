@@ -93,10 +93,10 @@ def calculate_tci(entry: LeaderboardEntry, irt_params: IRTParameters) -> float |
         alpha_b = irt_params.slope.get(bench, 1.0)
 
         # Clamp observed score to prevent log(0) or log(inf)
-        observed = max(0.01, min(0.99, observed))
+        clamped_score = max(0.01, min(0.99, observed))
 
         # Logit transform
-        logit_score = math.log(observed / (1 - observed))
+        logit_score = math.log(clamped_score / (1 - clamped_score))
 
         # Weight by discrimination (slope)
         weight = alpha_b

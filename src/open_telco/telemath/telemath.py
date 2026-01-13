@@ -3,8 +3,16 @@ from textwrap import dedent
 
 from inspect_ai import Task, task
 from inspect_ai.dataset import FieldSpec, hf_dataset
-from inspect_ai.scorer import accuracy, CORRECT, INCORRECT, Score, scorer, stderr, Target
-from inspect_ai.solver import generate, system_message, TaskState
+from inspect_ai.scorer import (
+    CORRECT,
+    INCORRECT,
+    Score,
+    Target,
+    accuracy,
+    scorer,
+    stderr,
+)
+from inspect_ai.solver import TaskState, generate, system_message
 
 DEFAULT_DATASET = "GSMA/open_telco"
 DEFAULT_DATASET_NAME = "telemath"
@@ -29,7 +37,7 @@ SYSTEM_PROMPT = dedent(r"""
 
 
 def parse_boxed_answer(response: str) -> str:
-    """Extract the last \\boxed{...} content from response."""
+    r"""Extract the last \boxed{...} content from response."""
     if not response:
         return ""
     matches = BOXED_PATTERN.findall(response)
@@ -56,7 +64,9 @@ def telemath_scorer():
         parsed = parse_boxed_answer(state.output.completion)
         pred_norm = normalize_numeric(parsed)
         target_norm = normalize_numeric(target.text)
-        is_correct = parsed == target.text or (pred_norm is not None and pred_norm == target_norm)
+        is_correct = parsed == target.text or (
+            pred_norm is not None and pred_norm == target_norm
+        )
         return Score(
             value=CORRECT if is_correct else INCORRECT,
             answer=parsed,

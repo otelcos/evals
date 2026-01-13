@@ -3,8 +3,16 @@ from typing import Literal
 
 from inspect_ai import Task, task
 from inspect_ai.dataset import FieldSpec, hf_dataset
-from inspect_ai.scorer import accuracy, CORRECT, INCORRECT, Score, scorer, stderr, Target
-from inspect_ai.solver import generate, TaskState
+from inspect_ai.scorer import (
+    CORRECT,
+    INCORRECT,
+    Score,
+    Target,
+    accuracy,
+    scorer,
+    stderr,
+)
+from inspect_ai.solver import TaskState, generate
 
 from open_telco.telelogs.utils import maj_at_k
 
@@ -19,7 +27,7 @@ WHITESPACE_PATTERN = re.compile(r"\n\s*")
 
 
 def parse_boxed_answer(response: str) -> str:
-    """Extract content from \\boxed{...} in response."""
+    r"""Extract content from \boxed{...} in response."""
     if not response:
         return ""
     matches = BOXED_PATTERN.findall(response)

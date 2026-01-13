@@ -184,7 +184,9 @@ async def test_eval_func_receives_param(
 ) -> None:
     runner = PreflightRunner(eval_func=mock_eval_func, config=default_config)
     await runner.run_model_test("test-model")
-    assert mock_eval_func.call_args.kwargs[param_name] == expected_value_fn(default_config)
+    assert mock_eval_func.call_args.kwargs[param_name] == expected_value_fn(
+        default_config
+    )
 
 
 @pytest.mark.parametrize(

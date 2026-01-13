@@ -17,50 +17,94 @@ from open_telco.cli.screens.submit.trajectory_bundler import (
 )
 
 
+@pytest.fixture
+def bundle_filtered_dataframe(
+    temp_results_parquet: Path, temp_trajectory_files: list[Path]
+) -> pd.DataFrame:
+    """DataFrame from bundle filtered to gpt-4o model."""
+    bundle = create_submission_bundle(
+        model_name="gpt-4o",
+        provider="Openai",
+        results_parquet_path=temp_results_parquet,
+        log_dir=temp_trajectory_files[0].parent,
+    )
+    return pd.read_parquet(io.BytesIO(bundle.parquet_content))
+
+
+@pytest.fixture
+def gpt4o_trajectory_files(temp_trajectory_files: list[Path]) -> dict[str, bytes]:
+    """Trajectory files found for gpt-4o model."""
+    log_dir = temp_trajectory_files[0].parent
+    return _find_trajectory_files(log_dir, "gpt-4o", "Openai")
+
+
+@pytest.fixture
+def mixed_json_trajectory_files(tmp_path: Path) -> dict[str, bytes]:
+    """Trajectory files from directory with valid and invalid JSON."""
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("{ this is not valid json }")
+
+    valid = tmp_path / "valid.json"
+    valid.write_text(json.dumps({"eval": {"model": "openai/gpt-4o"}}))
+
+    return _find_trajectory_files(tmp_path, "gpt-4o", "Openai")
+
+
+@pytest.fixture
+def bundle_parquet_dataframe(
+    sample_submission_bundle: SubmissionBundle,
+) -> pd.DataFrame:
+    """DataFrame parsed from sample submission bundle parquet."""
+    return pd.read_parquet(io.BytesIO(sample_submission_bundle.parquet_content))
+
+
 class TestTrajectoryBundler:
     """Test trajectory bundler core functionality."""
 
-    def test_create_bundle_filters_to_model(
-        self, temp_results_parquet: Path, temp_trajectory_files: list[Path]
+    def test_create_bundle_filters_to_model_returns_single_row(
+        self, bundle_filtered_dataframe: pd.DataFrame
     ) -> None:
-        """Bundle parquet should contain only the specified model's row."""
-        bundle = create_submission_bundle(
-            model_name="gpt-4o",
-            provider="Openai",
-            results_parquet_path=temp_results_parquet,
-            log_dir=temp_trajectory_files[0].parent,
-        )
+        """Bundle parquet should contain exactly one row for the specified model."""
+        assert len(bundle_filtered_dataframe) == 1
 
-        # Parse the parquet content
-        df = pd.read_parquet(io.BytesIO(bundle.parquet_content))
-
-        assert len(df) == 1
-        assert df.iloc[0]["model"] == "gpt-4o (Openai)"
-
-    def test_find_trajectories_by_eval_model(
-        self, temp_trajectory_files: list[Path]
+    def test_create_bundle_filters_to_model_has_correct_model_name(
+        self, bundle_filtered_dataframe: pd.DataFrame
     ) -> None:
-        """Should find trajectories matching eval.model field."""
-        log_dir = temp_trajectory_files[0].parent
+        """Bundle parquet should have the correct model name with provider."""
+        assert bundle_filtered_dataframe.iloc[0]["model"] == "gpt-4o (Openai)"
 
-        files = _find_trajectory_files(log_dir, "gpt-4o", "Openai")
+    def test_find_trajectories_by_eval_model_finds_correct_count(
+        self, gpt4o_trajectory_files: dict[str, bytes]
+    ) -> None:
+        """Should find exactly 2 trajectory files for gpt-4o model."""
+        assert len(gpt4o_trajectory_files) == 2
 
-        # Should find the gpt-4o trajectories but not the claude one
-        assert len(files) == 2
-        filenames = list(files.keys())
+    def test_find_trajectories_by_eval_model_includes_matching_files(
+        self, gpt4o_trajectory_files: dict[str, bytes]
+    ) -> None:
+        """Should include gpt4o trajectory files."""
+        filenames = list(gpt4o_trajectory_files.keys())
         assert any("gpt4o" in name for name in filenames)
+
+    def test_find_trajectories_by_eval_model_excludes_non_matching_files(
+        self, gpt4o_trajectory_files: dict[str, bytes]
+    ) -> None:
+        """Should exclude claude trajectory files."""
+        filenames = list(gpt4o_trajectory_files.keys())
         assert not any("claude" in name for name in filenames)
 
-    def test_find_trajectories_provider_model_format(
-        self, tmp_path: Path
-    ) -> None:
+    def test_find_trajectories_provider_model_format(self, tmp_path: Path) -> None:
         """Should match provider/model format like 'openai/gpt-4o'."""
         traj = tmp_path / "test_traj.json"
-        traj.write_text(json.dumps({
-            "eval": {
-                "model": "openai/gpt-4o",
-            },
-        }))
+        traj.write_text(
+            json.dumps(
+                {
+                    "eval": {
+                        "model": "openai/gpt-4o",
+                    },
+                }
+            )
+        )
 
         result = _trajectory_matches_model(
             {"eval": {"model": "openai/gpt-4o"}},
@@ -70,9 +114,7 @@ class TestTrajectoryBundler:
 
         assert result is True
 
-    def test_find_trajectories_router_provider_model(
-        self, tmp_path: Path
-    ) -> None:
+    def test_find_trajectories_router_provider_model(self, tmp_path: Path) -> None:
         """Should match router/provider/model format like 'openrouter/openai/gpt-4o'."""
         result = _trajectory_matches_model(
             {"eval": {"model": "openrouter/openai/gpt-4o"}},
@@ -82,41 +124,35 @@ class TestTrajectoryBundler:
 
         assert result is True
 
-    def test_no_trajectories_found_returns_empty(
-        self, tmp_path: Path
-    ) -> None:
+    def test_no_trajectories_found_returns_empty(self, tmp_path: Path) -> None:
         """Should return empty dict when no matching trajectories found."""
         # Create a trajectory for a different model
         traj = tmp_path / "other_model.json"
-        traj.write_text(json.dumps({
-            "eval": {
-                "model": "anthropic/claude-3",
-            },
-        }))
+        traj.write_text(
+            json.dumps(
+                {
+                    "eval": {
+                        "model": "anthropic/claude-3",
+                    },
+                }
+            )
+        )
 
         files = _find_trajectory_files(tmp_path, "gpt-4o", "Openai")
 
         assert files == {}
 
-    def test_invalid_json_skipped(self, tmp_path: Path) -> None:
-        """Malformed JSON files should be skipped without error."""
-        # Create invalid JSON file
-        invalid = tmp_path / "invalid.json"
-        invalid.write_text("{ this is not valid json }")
+    def test_invalid_json_skipped_finds_only_valid_file(
+        self, mixed_json_trajectory_files: dict[str, bytes]
+    ) -> None:
+        """Malformed JSON files should be skipped, finding only valid ones."""
+        assert len(mixed_json_trajectory_files) == 1
 
-        # Create valid JSON file
-        valid = tmp_path / "valid.json"
-        valid.write_text(json.dumps({
-            "eval": {
-                "model": "openai/gpt-4o",
-            },
-        }))
-
-        files = _find_trajectory_files(tmp_path, "gpt-4o", "Openai")
-
-        # Should find the valid file and skip the invalid one
-        assert len(files) == 1
-        assert "valid.json" in files
+    def test_invalid_json_skipped_returns_correct_filename(
+        self, mixed_json_trajectory_files: dict[str, bytes]
+    ) -> None:
+        """Should return the valid JSON file by name."""
+        assert "valid.json" in mixed_json_trajectory_files
 
     def test_model_not_in_parquet_raises(
         self, temp_results_parquet: Path, tmp_path: Path
@@ -255,22 +291,41 @@ class TestSampleCountValidation:
 class TestSubmissionBundle:
     """Test SubmissionBundle dataclass."""
 
-    def test_bundle_has_all_required_fields(
+    def test_bundle_has_correct_model_name(
         self, sample_submission_bundle: SubmissionBundle
     ) -> None:
-        """Bundle should have all required fields."""
+        """Bundle should have correct model_name field."""
         assert sample_submission_bundle.model_name == "gpt-4o"
+
+    def test_bundle_has_correct_provider(
+        self, sample_submission_bundle: SubmissionBundle
+    ) -> None:
+        """Bundle should have correct provider field."""
         assert sample_submission_bundle.provider == "Openai"
+
+    def test_bundle_parquet_content_is_bytes(
+        self, sample_submission_bundle: SubmissionBundle
+    ) -> None:
+        """Bundle parquet_content should be bytes type."""
         assert isinstance(sample_submission_bundle.parquet_content, bytes)
+
+    def test_bundle_trajectory_files_is_dict(
+        self, sample_submission_bundle: SubmissionBundle
+    ) -> None:
+        """Bundle trajectory_files should be dict type."""
         assert isinstance(sample_submission_bundle.trajectory_files, dict)
 
-    def test_bundle_parquet_is_valid(
-        self, sample_submission_bundle: SubmissionBundle
+    def test_bundle_parquet_is_not_empty(
+        self, bundle_parquet_dataframe: pd.DataFrame
     ) -> None:
-        """Bundle parquet content should be valid parquet."""
-        df = pd.read_parquet(io.BytesIO(sample_submission_bundle.parquet_content))
-        assert not df.empty
-        assert "model" in df.columns
+        """Bundle parquet content should not be empty."""
+        assert not bundle_parquet_dataframe.empty
+
+    def test_bundle_parquet_has_model_column(
+        self, bundle_parquet_dataframe: pd.DataFrame
+    ) -> None:
+        """Bundle parquet should have model column."""
+        assert "model" in bundle_parquet_dataframe.columns
 
     def test_bundle_trajectories_are_valid_json(
         self, sample_submission_bundle: SubmissionBundle

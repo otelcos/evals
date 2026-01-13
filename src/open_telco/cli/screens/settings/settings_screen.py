@@ -14,6 +14,7 @@ from textual.widgets import Input, Static
 from open_telco.cli.base_screen import BaseScreen
 from open_telco.cli.config import EnvManager
 from open_telco.cli.constants import Colors
+from open_telco.cli.types import Result
 
 
 class ValidationState(Enum):
@@ -28,7 +29,9 @@ class ValidationState(Enum):
 class SettingsScreen(BaseScreen):
     """Screen for managing settings like GITHUB_TOKEN."""
 
-    DEFAULT_CSS = BaseScreen.BASE_CSS + f"""
+    DEFAULT_CSS = (
+        BaseScreen.BASE_CSS
+        + f"""
     SettingsScreen {{
         padding: 0 4;
         layout: vertical;
@@ -95,6 +98,7 @@ class SettingsScreen(BaseScreen):
         color: {Colors.TEXT_MUTED};
     }}
     """
+    )
 
     validation_state = reactive(ValidationState.IDLE)
 
@@ -106,7 +110,9 @@ class SettingsScreen(BaseScreen):
 
     def compose(self) -> ComposeResult:
         has_token = self.env_manager.has_key("GITHUB_TOKEN")
-        status_text = f"[{Colors.SUCCESS}]set[/]" if has_token else f"[{Colors.ERROR}]not set[/]"
+        status_text = (
+            f"[{Colors.SUCCESS}]set[/]" if has_token else f"[{Colors.ERROR}]not set[/]"
+        )
 
         yield Static("settings", id="header")
         with Container(id="form-container"):
@@ -170,9 +176,9 @@ class SettingsScreen(BaseScreen):
             return
 
         # Save token first
-        success = self.env_manager.set("GITHUB_TOKEN", token)
-        if not success:
-            self.notify("failed to save token", severity="error")
+        result = self.env_manager.set("GITHUB_TOKEN", token)
+        if not result.success:
+            self.notify(result.error or "failed to save token", severity="error")
             return
 
         # Update status display
@@ -191,48 +197,52 @@ class SettingsScreen(BaseScreen):
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
-    def _try_github_request(self, url: str, headers: dict[str, str]) -> requests.Response | None:
-        """Make a GitHub API request. Returns None on network failure."""
+    def _try_github_request(
+        self, url: str, headers: dict[str, str]
+    ) -> Result[requests.Response, str]:
+        """Make a GitHub API request."""
         try:
-            return requests.get(url, headers=headers, timeout=30)
+            return Result.ok(requests.get(url, headers=headers, timeout=30))
         except requests.Timeout:
-            self._report_validation_error("validation timed out")
-            return None
+            return Result.err("validation timed out")
         except requests.RequestException as e:
-            self._report_validation_error(f"network error: {e}")
-            return None
+            return Result.err(f"network error: {e}")
 
-    def _validate_user_token(self, headers: dict[str, str]) -> str | None:
-        """Validate token and get username. Returns None on failure."""
-        response = self._try_github_request("https://api.github.com/user", headers)
-        if response is None:
-            return None
+    def _validate_user_token(self, headers: dict[str, str]) -> Result[str, str]:
+        """Validate token and get username."""
+        response_result = self._try_github_request(
+            "https://api.github.com/user", headers
+        )
+        if not response_result.success:
+            return Result.err(response_result.error or "Request failed")
 
+        response = response_result.value
         if response.status_code == 401:
-            self._report_validation_error("invalid token (401 unauthorized)")
-            return None
+            return Result.err("invalid token (401 unauthorized)")
         if response.status_code != 200:
-            self._report_validation_error(f"token check failed ({response.status_code})")
-            return None
+            return Result.err(f"token check failed ({response.status_code})")
 
-        return response.json().get("login", "unknown")
+        return Result.ok(response.json().get("login", "unknown"))
 
-    def _validate_repo_access(self, headers: dict[str, str], user: str) -> bool:
-        """Validate access to the leaderboard repo. Returns False on failure."""
-        response = self._try_github_request(
+    def _validate_repo_access(
+        self, headers: dict[str, str], user: str
+    ) -> Result[bool, str]:
+        """Validate access to the leaderboard repo."""
+        response_result = self._try_github_request(
             "https://api.github.com/repos/gsma-research/ot_leaderboard", headers
         )
-        if response is None:
-            return False
+        if not response_result.success:
+            return Result.err(response_result.error or "Request failed")
 
+        response = response_result.value
         if response.status_code == 404:
-            self._report_validation_error(f"user {user}: cannot access gsma-research/ot_leaderboard")
-            return False
+            return Result.err(
+                f"user {user}: cannot access gsma-research/ot_leaderboard"
+            )
         if response.status_code != 200:
-            self._report_validation_error(f"repo check failed ({response.status_code})")
-            return False
+            return Result.err(f"repo check failed ({response.status_code})")
 
-        return True
+        return Result.ok(True)
 
     def _report_validation_error(self, message: str) -> None:
         """Report a validation error to the UI."""
@@ -249,14 +259,17 @@ class SettingsScreen(BaseScreen):
         """Validate the GitHub token in background."""
         headers = self._build_github_headers(token)
 
-        user = self._validate_user_token(headers)
-        if user is None:
+        user_result = self._validate_user_token(headers)
+        if not user_result.success:
+            self._report_validation_error(user_result.error or "Validation failed")
             return
 
-        if not self._validate_repo_access(headers, user):
+        repo_result = self._validate_repo_access(headers, user_result.value)
+        if not repo_result.success:
+            self._report_validation_error(repo_result.error or "Repo access failed")
             return
 
-        self._report_validation_success(user)
+        self._report_validation_success(user_result.value)
 
     def _set_validation_state(self, state: ValidationState) -> None:
         """Set validation state (called from thread)."""

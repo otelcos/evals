@@ -2,7 +2,7 @@ from collections import Counter
 from itertools import groupby
 from operator import attrgetter
 
-from inspect_ai.scorer import CORRECT, metric, SampleScore, Value
+from inspect_ai.scorer import CORRECT, SampleScore, Value, metric
 
 
 @metric

@@ -22,4 +22,3 @@ This project is built on [Inspect AI](https://inspect.aisi.org.uk/), we encourag
 **Telcos:** AT&T, China Telecom, Deutsche Telekom, du, KDDI, KPN, Liberty Global, Orange, Telefónica, Turkcell, Swisscom, Vodafone.
 
 **Industry Labs & SMEs:** NetoAI, Datumo, Adaptive-AI
-

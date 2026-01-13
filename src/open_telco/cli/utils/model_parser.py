@@ -3,6 +3,7 @@
 Centralizes the logic for parsing model identifiers into
 provider/model components and display formats.
 """
+
 from __future__ import annotations
 
 from open_telco.cli.constants import PROVIDER_DISPLAY_NAMES
@@ -28,21 +29,31 @@ def parse_model_string(model_str: str) -> ModelInfo:
     if len(parts) >= 3:
         provider = parts[1]
         model_name = "/".join(parts[2:])
-        provider_display = PROVIDER_DISPLAY_NAMES.get(provider.lower(), provider.title())
+        provider_display = PROVIDER_DISPLAY_NAMES.get(
+            provider.lower(), provider.title()
+        )
         display_name = f"{model_name} ({provider_display})"
-        return ModelInfo(provider=provider, model_name=model_name, display_name=display_name)
+        return ModelInfo(
+            provider=provider, model_name=model_name, display_name=display_name
+        )
 
     if len(parts) == 2:
         provider = parts[0]
         model_name = parts[1]
-        provider_display = PROVIDER_DISPLAY_NAMES.get(provider.lower(), provider.title())
+        provider_display = PROVIDER_DISPLAY_NAMES.get(
+            provider.lower(), provider.title()
+        )
         display_name = f"{model_name} ({provider_display})"
-        return ModelInfo(provider=provider, model_name=model_name, display_name=display_name)
+        return ModelInfo(
+            provider=provider, model_name=model_name, display_name=display_name
+        )
 
     provider = "unknown"
     model_name = model_str
     display_name = f"{model_name} (Unknown)"
-    return ModelInfo(provider=provider, model_name=model_name, display_name=display_name)
+    return ModelInfo(
+        provider=provider, model_name=model_name, display_name=display_name
+    )
 
 
 def get_provider_display(provider_key: str) -> str:
