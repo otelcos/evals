@@ -10,6 +10,8 @@ Tests covered:
 
 import time
 
+import pytest
+
 from open_telco.cli.app import OpenTelcoApp
 from open_telco.cli.screens.main_menu import MainMenuScreen
 from open_telco.cli.screens.set_models import SetModelsCategoryScreen
@@ -19,6 +21,7 @@ from open_telco.cli.screens.welcome import WelcomeScreen
 class TestCLIStartup:
     """Test 1: Verify app starts without error."""
 
+    @pytest.mark.asyncio
     async def test_app_starts_successfully(self) -> None:
         """App should start and display WelcomeScreen without errors."""
         app = OpenTelcoApp()
@@ -26,6 +29,7 @@ class TestCLIStartup:
             assert pilot.app is not None
             assert isinstance(pilot.app.screen, WelcomeScreen)
 
+    @pytest.mark.asyncio
     async def test_app_title_is_correct(self) -> None:
         """App title should be 'Open Telco'."""
         app = OpenTelcoApp()
@@ -36,6 +40,7 @@ class TestCLIStartup:
 class TestStartupTiming:
     """Test 2: Startup must be under 0.1 seconds."""
 
+    @pytest.mark.asyncio
     async def test_startup_under_100ms(self) -> None:
         """App startup should complete in under 0.1 seconds."""
         app = OpenTelcoApp()
@@ -51,6 +56,7 @@ class TestStartupTiming:
 class TestNavigation:
     """Test 3: Navigation from WelcomeScreen to MainMenuScreen."""
 
+    @pytest.mark.asyncio
     async def test_enter_navigates_to_main_menu(self) -> None:
         """Pressing enter on WelcomeScreen should navigate to MainMenuScreen."""
         app = OpenTelcoApp()
@@ -61,6 +67,7 @@ class TestNavigation:
 
             assert isinstance(pilot.app.screen, MainMenuScreen)
 
+    @pytest.mark.asyncio
     async def test_escape_also_navigates_to_main_menu(self) -> None:
         """Pressing escape on WelcomeScreen should also navigate to MainMenuScreen."""
         app = OpenTelcoApp()
@@ -75,6 +82,7 @@ class TestNavigation:
 class TestQuit:
     """Test 4: Press 'q' on MainMenuScreen exits app."""
 
+    @pytest.mark.asyncio
     async def test_quit_from_main_menu(self) -> None:
         """Pressing 'q' on MainMenuScreen should exit the application."""
         app = OpenTelcoApp()
@@ -90,6 +98,7 @@ class TestQuit:
 class TestSetModelOption:
     """Test 5: Select set-model option goes to SetModelsCategoryScreen."""
 
+    @pytest.mark.asyncio
     async def test_set_model_navigates_to_category_screen(self) -> None:
         """Selecting set-model should navigate to SetModelsCategoryScreen."""
         app = OpenTelcoApp()
@@ -101,6 +110,7 @@ class TestSetModelOption:
 
             assert isinstance(pilot.app.screen, SetModelsCategoryScreen)
 
+    @pytest.mark.asyncio
     async def test_navigate_down_and_back_to_set_model(self) -> None:
         """Can navigate down/up and still select set-model correctly."""
         app = OpenTelcoApp()

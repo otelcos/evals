@@ -87,12 +87,12 @@ class TestRunEvalsScreen:
     @pytest.mark.asyncio
     async def test_screen_has_three_checklist_items(self) -> None:
         """Screen should have exactly 3 checklist items."""
-        app = OpenTelcoApp()
-        async with app.run_test() as pilot:
-            with patch(
-                "open_telco.cli.screens.run_evals.run_evals_screen.RunEvalsScreen._check_preflight_passed",
-                return_value=False,
-            ):
+        with patch(
+            "open_telco.cli.screens.run_evals.run_evals_screen.RunEvalsScreen._check_preflight_passed",
+            return_value=False,
+        ):
+            app = OpenTelcoApp()
+            async with app.run_test() as pilot:
                 await pilot.press("enter")
                 await pilot.press("down")
                 await pilot.press("enter")
@@ -113,12 +113,12 @@ class TestRunEvalsScreen:
     )
     async def test_screen_has_checklist_step_id(self, expected_step_id: str) -> None:
         """Screen should include expected step ID in checklist items."""
-        app = OpenTelcoApp()
-        async with app.run_test() as pilot:
-            with patch(
-                "open_telco.cli.screens.run_evals.run_evals_screen.RunEvalsScreen._check_preflight_passed",
-                return_value=False,
-            ):
+        with patch(
+            "open_telco.cli.screens.run_evals.run_evals_screen.RunEvalsScreen._check_preflight_passed",
+            return_value=False,
+        ):
+            app = OpenTelcoApp()
+            async with app.run_test() as pilot:
                 await pilot.press("enter")
                 await pilot.press("down")
                 await pilot.press("enter")
@@ -133,15 +133,15 @@ class TestRunEvalsScreen:
     @pytest.mark.asyncio
     async def test_screen_shows_model_info(self) -> None:
         """Screen should display the configured model."""
-        app = OpenTelcoApp()
-        async with app.run_test() as pilot:
-            with patch(
-                "open_telco.cli.screens.run_evals.run_evals_screen.EnvManager"
-            ) as mock_env:
-                mock_instance = MagicMock()
-                mock_instance.get.return_value = "openai/gpt-4o"
-                mock_env.return_value = mock_instance
+        with patch(
+            "open_telco.cli.screens.run_evals.run_evals_screen.EnvManager"
+        ) as mock_env:
+            mock_instance = MagicMock()
+            mock_instance.get.return_value = "openai/gpt-4o"
+            mock_env.return_value = mock_instance
 
+            app = OpenTelcoApp()
+            async with app.run_test() as pilot:
                 # Navigate to run-evals screen
                 await pilot.press("enter")
                 await pilot.press("down")
@@ -152,16 +152,16 @@ class TestRunEvalsScreen:
     @pytest.mark.asyncio
     async def test_shows_error_when_no_model_configured(self) -> None:
         """Screen should show error when no model is configured."""
-        app = OpenTelcoApp()
-        async with app.run_test() as pilot:
-            # Mock EnvManager to return no model
-            with patch(
-                "open_telco.cli.screens.run_evals.run_evals_screen.EnvManager"
-            ) as mock_env:
-                mock_instance = MagicMock()
-                mock_instance.get.return_value = None
-                mock_env.return_value = mock_instance
+        # Mock EnvManager to return no model
+        with patch(
+            "open_telco.cli.screens.run_evals.run_evals_screen.EnvManager"
+        ) as mock_env:
+            mock_instance = MagicMock()
+            mock_instance.get.return_value = None
+            mock_env.return_value = mock_instance
 
+            app = OpenTelcoApp()
+            async with app.run_test() as pilot:
                 # Navigate to run-evals screen
                 await pilot.press("enter")
                 await pilot.press("down")
