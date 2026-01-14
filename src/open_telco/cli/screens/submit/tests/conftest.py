@@ -52,42 +52,64 @@ def mock_direct_access_responses() -> MagicMock:
     """Mock responses for direct access PR creation (no fork needed)."""
     mock = MagicMock()
 
-    # Mock authenticated user response
+    # 1. GET /user - authenticated user
     user_response = MagicMock()
     user_response.status_code = 200
     user_response.json.return_value = {"login": "testuser"}
 
-    # Mock successful branch creation (direct access)
+    # 2. GET /repos/.../collaborators/{user}/permission - check write access
+    permission_response = MagicMock()
+    permission_response.status_code = 200
+    permission_response.json.return_value = {"permission": "write"}
+
+    # 3. GET /repos/.../git/refs/heads/main - get base SHA
+    ref_response = MagicMock()
+    ref_response.status_code = 200
+    ref_response.json.return_value = {"object": {"sha": "abc123"}}
+
+    # 4. GET /repos/.../git/refs/heads/{branch} - branch doesn't exist
+    branch_check_response = MagicMock()
+    branch_check_response.status_code = 404
+
+    # 5. GET /repos/.../contents/{parquet} - file doesn't exist
+    file_check_404 = MagicMock()
+    file_check_404.status_code = 404
+
+    # 6. GET /repos/.../contents/{trajectory} - file doesn't exist
+    # (reuse file_check_404)
+
+    # 7. GET /repos/.../pulls - no existing PRs
+    no_prs_response = MagicMock()
+    no_prs_response.status_code = 200
+    no_prs_response.json.return_value = []
+
+    # POST /repos/.../git/refs - create branch
     branch_response = MagicMock()
     branch_response.status_code = 201
     branch_response.json.return_value = {"ref": "refs/heads/submission/gpt-4o"}
 
-    # Mock successful file creation
-    file_response = MagicMock()
-    file_response.status_code = 201
-
-    # Mock successful PR creation
+    # POST /repos/.../pulls - create PR
     pr_response = MagicMock()
     pr_response.status_code = 201
     pr_response.json.return_value = {
         "html_url": "https://github.com/otelcos/ot_leaderboard/pull/123"
     }
 
-    # Get default branch
-    repo_response = MagicMock()
-    repo_response.status_code = 200
-    repo_response.json.return_value = {
-        "default_branch": "main",
-        "permissions": {"push": True},
-    }
+    # PUT /repos/.../contents/{file} - create files
+    file_response = MagicMock()
+    file_response.status_code = 201
 
-    # Get ref (for base SHA)
-    ref_response = MagicMock()
-    ref_response.status_code = 200
-    ref_response.json.return_value = {"object": {"sha": "abc123"}}
-
-    mock.get.side_effect = [user_response, repo_response, ref_response]
-    mock.post.side_effect = [branch_response, file_response, file_response, pr_response]
+    mock.get.side_effect = [
+        user_response,  # 1. /user
+        permission_response,  # 2. /collaborators/.../permission
+        ref_response,  # 3. /git/refs/heads/main
+        branch_check_response,  # 4. check branch exists
+        file_check_404,  # 5. check parquet exists
+        file_check_404,  # 6. check trajectory exists
+        no_prs_response,  # 7. check existing PRs
+    ]
+    mock.post.side_effect = [branch_response, pr_response]
+    mock.put.side_effect = [file_response, file_response]
 
     return mock
 
@@ -110,6 +132,10 @@ def direct_access_pr_result(
             "open_telco.cli.screens.submit.github_service.requests.post",
             side_effect=mock_direct_access_responses.post.side_effect,
         ),
+        patch(
+            "open_telco.cli.screens.submit.github_service.requests.put",
+            side_effect=mock_direct_access_responses.put.side_effect,
+        ),
     ):
         result = github_service.create_submission_pr(**default_submission_params)
         return result, github_service
@@ -117,15 +143,42 @@ def direct_access_pr_result(
 
 @pytest.fixture
 def mock_fork_fallback_responses() -> MagicMock:
-    """Mock responses for fork fallback PR creation (403 on direct, success via fork)."""
+    """Mock responses for fork fallback PR creation (no direct access, use fork)."""
     mock = MagicMock()
 
-    # Mock authenticated user response
+    # 1. GET /user - authenticated user
     user_response = MagicMock()
     user_response.status_code = 200
     user_response.json.return_value = {"login": "testuser"}
 
-    # Fork creation succeeds
+    # 2. GET /repos/.../collaborators/{user}/permission - no write access (read only)
+    permission_response = MagicMock()
+    permission_response.status_code = 200
+    permission_response.json.return_value = {"permission": "read"}
+
+    # 3. GET /repos/{user}/{repo} - check if fork exists (404 = doesn't exist)
+    fork_check_404 = MagicMock()
+    fork_check_404.status_code = 404
+
+    # 4. GET /repos/{user}/{repo}/git/refs/heads/main - get base SHA from fork
+    ref_response = MagicMock()
+    ref_response.status_code = 200
+    ref_response.json.return_value = {"object": {"sha": "abc123"}}
+
+    # 5. GET /repos/{user}/{repo}/git/refs/heads/{branch} - branch doesn't exist
+    branch_check_404 = MagicMock()
+    branch_check_404.status_code = 404
+
+    # 6-7. GET /repos/.../contents/{file} - files don't exist
+    file_check_404 = MagicMock()
+    file_check_404.status_code = 404
+
+    # 8. GET /repos/.../pulls - no existing PRs
+    no_prs_response = MagicMock()
+    no_prs_response.status_code = 200
+    no_prs_response.json.return_value = []
+
+    # POST /repos/.../forks - create fork
     fork_response = MagicMock()
     fork_response.status_code = 202
     fork_response.json.return_value = {
@@ -134,42 +187,33 @@ def mock_fork_fallback_responses() -> MagicMock:
         "owner": {"login": "testuser"},
     }
 
-    # Branch creation on fork succeeds
-    branch_success = MagicMock()
-    branch_success.status_code = 201
+    # POST /repos/{user}/{repo}/git/refs - create branch
+    branch_response = MagicMock()
+    branch_response.status_code = 201
 
-    # File uploads succeed
-    file_response = MagicMock()
-    file_response.status_code = 201
-
-    # PR creation succeeds
+    # POST /repos/.../pulls - create PR
     pr_response = MagicMock()
     pr_response.status_code = 201
     pr_response.json.return_value = {
         "html_url": "https://github.com/otelcos/ot_leaderboard/pull/456"
     }
 
-    # Get repo info - no push permission, triggers fork workflow
-    repo_response = MagicMock()
-    repo_response.status_code = 200
-    repo_response.json.return_value = {
-        "default_branch": "main",
-        "permissions": {"push": False},
-    }
+    # PUT /repos/{user}/{repo}/contents/{file} - create files
+    file_response = MagicMock()
+    file_response.status_code = 201
 
-    # Get ref
-    ref_response = MagicMock()
-    ref_response.status_code = 200
-    ref_response.json.return_value = {"object": {"sha": "abc123"}}
-
-    mock.get.side_effect = [user_response, repo_response, ref_response, ref_response]
-    mock.post.side_effect = [
-        fork_response,
-        branch_success,
-        file_response,
-        file_response,
-        pr_response,
+    mock.get.side_effect = [
+        user_response,  # 1. /user
+        permission_response,  # 2. /collaborators/.../permission (read only)
+        fork_check_404,  # 3. check if fork exists
+        ref_response,  # 4. get base SHA from fork
+        branch_check_404,  # 5. check branch exists
+        file_check_404,  # 6. check parquet exists
+        file_check_404,  # 7. check trajectory exists
+        no_prs_response,  # 8. check existing PRs
     ]
+    mock.post.side_effect = [fork_response, branch_response, pr_response]
+    mock.put.side_effect = [file_response, file_response]
 
     return mock
 
@@ -192,6 +236,10 @@ def fork_fallback_pr_result(
             "open_telco.cli.screens.submit.github_service.requests.post",
             side_effect=mock_fork_fallback_responses.post.side_effect,
         ),
+        patch(
+            "open_telco.cli.screens.submit.github_service.requests.put",
+            side_effect=mock_fork_fallback_responses.put.side_effect,
+        ),
     ):
         result = github_service.create_submission_pr(**default_submission_params)
         return result, github_service
@@ -202,38 +250,57 @@ def mock_existing_pr_responses() -> MagicMock:
     """Mock responses when PR already exists."""
     mock = MagicMock()
 
-    # Mock authenticated user response
+    # 1. GET /user - authenticated user
     user_response = MagicMock()
     user_response.status_code = 200
     user_response.json.return_value = {"login": "testuser"}
 
-    # Get repo info
-    repo_response = MagicMock()
-    repo_response.status_code = 200
-    repo_response.json.return_value = {
-        "default_branch": "main",
-        "permissions": {"push": True},
-    }
+    # 2. GET /repos/.../collaborators/{user}/permission - write access
+    permission_response = MagicMock()
+    permission_response.status_code = 200
+    permission_response.json.return_value = {"permission": "write"}
 
-    # Get ref (for base SHA)
+    # 3. GET /repos/.../git/refs/heads/main - get base SHA
     ref_response = MagicMock()
     ref_response.status_code = 200
     ref_response.json.return_value = {"object": {"sha": "abc123"}}
 
-    # Branch already exists (422)
-    branch_exists = MagicMock()
-    branch_exists.status_code = 422
-    branch_exists.json.return_value = {"message": "Reference already exists"}
+    # 4. GET /repos/.../git/refs/heads/{branch} - branch already exists
+    branch_exists_response = MagicMock()
+    branch_exists_response.status_code = 200
+    branch_exists_response.json.return_value = {"object": {"sha": "def456"}}
 
-    # PR search returns existing PR
-    search_response = MagicMock()
-    search_response.status_code = 200
-    search_response.json.return_value = [
+    # 5-6. GET /repos/.../contents/{file} - files don't exist
+    file_check_404 = MagicMock()
+    file_check_404.status_code = 404
+
+    # 7. GET /repos/.../pulls - existing PR found!
+    existing_pr_response = MagicMock()
+    existing_pr_response.status_code = 200
+    existing_pr_response.json.return_value = [
         {"html_url": "https://github.com/otelcos/ot_leaderboard/pull/99"}
     ]
 
-    mock.get.side_effect = [user_response, repo_response, ref_response, search_response]
-    mock.post.side_effect = [branch_exists]
+    # PATCH /repos/.../git/refs/heads/{branch} - update existing branch
+    patch_response = MagicMock()
+    patch_response.status_code = 200
+
+    # PUT /repos/.../contents/{file} - create files
+    file_response = MagicMock()
+    file_response.status_code = 201
+
+    mock.get.side_effect = [
+        user_response,  # 1. /user
+        permission_response,  # 2. /collaborators/.../permission
+        ref_response,  # 3. /git/refs/heads/main
+        branch_exists_response,  # 4. branch already exists
+        file_check_404,  # 5. check parquet exists
+        file_check_404,  # 6. check trajectory exists
+        existing_pr_response,  # 7. existing PR found
+    ]
+    mock.post.side_effect = []  # No POST needed (branch exists, PR exists)
+    mock.patch.side_effect = [patch_response]
+    mock.put.side_effect = [file_response, file_response]
 
     return mock
 
@@ -255,6 +322,14 @@ def existing_pr_result(
         patch(
             "open_telco.cli.screens.submit.github_service.requests.post",
             side_effect=mock_existing_pr_responses.post.side_effect,
+        ),
+        patch(
+            "open_telco.cli.screens.submit.github_service.requests.patch",
+            side_effect=mock_existing_pr_responses.patch.side_effect,
+        ),
+        patch(
+            "open_telco.cli.screens.submit.github_service.requests.put",
+            side_effect=mock_existing_pr_responses.put.side_effect,
         ),
     ):
         return github_service.create_submission_pr(**default_submission_params)
