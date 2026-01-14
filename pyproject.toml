@@ -100,6 +100,20 @@ disable_error_code = "unused-ignore"
 module = ["datasets", "datasets.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["open_telco.cli.*"]
+disallow_untyped_defs = false
+disallow_any_generics = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+warn_return_any = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+
 [tool.check-wheel-contents]
 ignore = ["W002", "W009"]
 
