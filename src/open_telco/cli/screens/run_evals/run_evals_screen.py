@@ -268,7 +268,7 @@ class TaskSelectScreen(Screen[list[str] | None]):
         self.dismiss(None)
 
 
-class EvalRunningScreen(Screen[None]):
+class EvalRunningScreen(Screen[bool]):
     """Screen for running selected evaluations with animated progress."""
 
     DEFAULT_CSS = f"""
@@ -757,16 +757,12 @@ class EvalRunningScreen(Screen[None]):
     def action_cancel(self) -> None:
         self._cancelled = True
         self._kill_current_process()
-        self.app.pop_screen()
+        self.dismiss(None)
 
     def action_confirm(self) -> None:
         if not self._completed:
             return
-        # Return to main menu using switch_screen to avoid race conditions
-        # from multiple pop_screen() calls
-        from open_telco.cli.screens.main_menu import MainMenuScreen
-
-        self.app.switch_screen(MainMenuScreen())
+        self.dismiss(True)
 
 
 class KSelectionScreen(Screen[int | None]):
@@ -1256,7 +1252,15 @@ class RunEvalsScreen(Screen[None]):
             self.app.pop_screen()
             return
         self.tasks = selected
-        self.app.push_screen(EvalRunningScreen(self.model, selected, self._selected_k))
+        self.app.push_screen(
+            EvalRunningScreen(self.model, selected, self._selected_k),
+            self._on_eval_complete,
+        )
+
+    def _on_eval_complete(self, completed: bool | None) -> None:
+        """Handle completion of EvalRunningScreen."""
+        # Whether completed or cancelled, return to main menu
+        self.app.pop_screen()
 
     def _show_k_selection(self, find_k_result: FindKResult) -> None:
         self.app.push_screen(
