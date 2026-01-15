@@ -22,8 +22,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ## Installation
 
 ```bash
-git clone https://github.com/otelcos/open_telco.git
-cd open_telco
+git clone https://github.com/otelcos/evals.git
+cd evals
 uv sync
 ```
 
@@ -60,7 +60,7 @@ Full list of supported models: [Inspect AI Models](https://inspect.aisi.org.uk/m
 Run a quick test with 5 samples:
 
 ```bash
-uv run inspect eval src/open_telco/teleqna/teleqna.py --model openai/gpt-4o --limit 5
+uv run inspect eval src/evals/teleqna/teleqna.py --model openai/gpt-4o --limit 5
 ```
 
 If successful, you'll see evaluation progress and results in your terminal.

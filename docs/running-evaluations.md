@@ -8,7 +8,7 @@ New to Open Telco? Start here:
 
 ```bash
 # Run TeleQnA with 20 samples (takes ~2-3 minutes)
-uv run inspect eval src/open_telco/teleqna/teleqna.py --model openai/gpt-4o --limit 20
+uv run inspect eval src/evals/teleqna/teleqna.py --model openai/gpt-4o --limit 20
 
 # View results in browser
 uv run inspect view
@@ -30,10 +30,10 @@ uv run inspect eval <eval_path> --model <model>
 
 ```bash
 # Limit samples for testing
-uv run inspect eval src/open_telco/telemath/telemath.py --model openai/gpt-4o --limit 10
+uv run inspect eval src/evals/telemath/telemath.py --model openai/gpt-4o --limit 10
 
 # Run multiple epochs (for majority voting metrics)
-uv run inspect eval src/open_telco/telelogs/telelogs.py --model openai/gpt-4o -T 4
+uv run inspect eval src/evals/telelogs/telelogs.py --model openai/gpt-4o -T 4
 
 # View logs in browser
 uv run inspect view
@@ -46,14 +46,14 @@ For running multiple evaluations across multiple models, use `eval_set`. This is
 ### Command Line
 
 ```bash
-uv run inspect eval-set src/open_telco/teleqna/teleqna.py src/open_telco/telemath/telemath.py \
+uv run inspect eval-set src/evals/teleqna/teleqna.py src/evals/telemath/telemath.py \
    --model openai/gpt-4o,anthropic/claude-sonnet-4-20250514 \
    --log-dir logs/benchmark-run-1
 ```
 
 ### Python Script
 
-Use the provided [run_evals.py](../src/open_telco/run_evals.py) script:
+Use the provided [run_evals.py](../src/evals/run_evals.py) script:
 
 ```python
 from inspect_ai import eval_set
@@ -78,7 +78,7 @@ success, logs = eval_set(
 Run it with:
 
 ```bash
-uv run python src/open_telco/run_evals.py
+uv run python src/evals/run_evals.py
 ```
 
 ### Key Parameters
@@ -98,12 +98,12 @@ Eval sets that don't complete due to errors or cancellation can be re-run. Simpl
 
 ```bash
 # Initial run (interrupted)
-uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
+uv run inspect eval-set src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o \
    --log-dir logs/benchmark-run-1
 
 # Re-run to complete remaining work
-uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
+uv run inspect eval-set src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o \
    --log-dir logs/benchmark-run-1
 ```
@@ -112,7 +112,7 @@ You can also extend an eval set with additional models or epochs:
 
 ```bash
 # Add another model to the same run
-uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
+uv run inspect eval-set src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o,openai/gpt-4-turbo \
    --epochs 3 \
    --log-dir logs/benchmark-run-1
@@ -129,7 +129,7 @@ uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
 Example with custom retry settings:
 
 ```bash
-uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
+uv run inspect eval-set src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o \
    --log-dir logs/benchmark-run-1 \
    --retry-wait 120 \

@@ -28,7 +28,7 @@ Open Telco supports any model available through [Inspect AI](https://inspect.ais
 - Good baseline for model comparison
 
 ```bash
-uv run inspect eval src/open_telco/teleqna/teleqna.py --model openai/gpt-4o --limit 50
+uv run inspect eval src/evals/teleqna/teleqna.py --model openai/gpt-4o --limit 50
 ```
 
 ## Understanding Benchmarks
@@ -79,7 +79,7 @@ Use `--limit N` to run fewer samples for testing.
 ### How do I run multiple models at once?
 
 ```bash
-uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
+uv run inspect eval-set src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o,anthropic/claude-sonnet-4-20250514 \
    --log-dir logs/comparison
 ```
@@ -89,7 +89,7 @@ uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
 Yes. Re-run the same command with the same `--log-dir` and it will pick up where it left off:
 
 ```bash
-uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
+uv run inspect eval-set src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o \
    --log-dir logs/my-run
 ```
@@ -101,7 +101,7 @@ uv run inspect eval-set src/open_telco/teleqna/teleqna.py \
 Add retry options:
 
 ```bash
-uv run inspect eval src/open_telco/teleqna/teleqna.py \
+uv run inspect eval src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o \
    --retry-attempts 5 \
    --retry-wait 60
@@ -118,13 +118,13 @@ uv run inspect eval src/open_telco/teleqna/teleqna.py \
 Run multiple epochs for more stable results:
 
 ```bash
-uv run inspect eval src/open_telco/teleqna/teleqna.py \
+uv run inspect eval src/evals/teleqna/teleqna.py \
    --model openai/gpt-4o \
    --epochs 3
 ```
 
 ## Getting Help
 
-- **GitHub Issues**: [github.com/otelcos/open_telco/issues](https://github.com/otelcos/open_telco/issues)
+- **GitHub Issues**: [github.com/otelcos/evals/issues](https://github.com/otelcos/evals/issues)
 - **Inspect AI Docs**: [inspect.aisi.org.uk](https://inspect.aisi.org.uk/)
 - **Contact**: [emolero@gsma.com](mailto:emolero@gsma.com)
