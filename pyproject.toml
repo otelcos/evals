@@ -7,10 +7,10 @@ fallback_version = "0.0.0+unknown"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["open_telco*"]
+include = ["evals*"]
 
 [tool.setuptools.package-data]
-"open_telco" = ["*.yaml", "*.json"]
+"evals" = ["*.yaml", "*.json"]
 
 [tool.ruff]
 extend-exclude = ["docs"]
@@ -84,7 +84,7 @@ warn_redundant_casts = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["open_telco.*"]
+module = ["evals.*"]
 warn_return_any = false
 disallow_untyped_defs = false
 disallow_any_generics = false
@@ -108,7 +108,7 @@ ignore_missing_imports = true
 ignore = ["W002", "W009"]
 
 [project]
-name = "open_telco"
+name = "evals"
 description = "Open Telco Initiative Benchmarks"
 authors = [{ name = "Open Telco Initiative" }]
 readme = "README.md"
@@ -140,14 +140,14 @@ dependencies = [
 ]
 
 [project.urls]
-"Source Code" = "https://github.com/Open-Telco/open_telco"
-"Issue Tracker" = "https://github.com/Open-Telco/open_telco/issues"
+"Source Code" = "https://github.com/otelcos/evals"
+"Issue Tracker" = "https://github.com/otelcos/evals/issues"
 
 [project.entry-points.inspect_ai]
-open_telco = "open_telco._registry"
+evals = "evals._registry"
 
 [project.scripts]
-open-telco = "open_telco.cli:main"
+satellite = "evals.cli:main"
 
 [dependency-groups]
 dev = [
