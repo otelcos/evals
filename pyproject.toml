@@ -51,10 +51,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["PLR2004"]  # Allow magic numbers in tests
-"**/cli/screens/**" = ["PLR2004"]  # HTTP status codes, list indices
-"**/cli/services/**" = ["PLR2004"]  # HTTP status codes, list indices
-"**/cli/utils/**" = ["PLR2004"]  # List parsing logic
-"**/cli/widgets/**" = ["PLR2004"]  # Tuple unpacking
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
@@ -136,7 +132,6 @@ dependencies = [
     "toml>=0.10.2",
     "jinja2",
     "python-dotenv",
-    "textual>=0.89.0",
 ]
 
 [project.urls]
@@ -145,9 +140,6 @@ dependencies = [
 
 [project.entry-points.inspect_ai]
 evals = "evals._registry"
-
-[project.scripts]
-satellite = "evals.cli:main"
 
 [dependency-groups]
 dev = [
