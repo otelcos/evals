@@ -1,3 +1,4 @@
+import math
 import re
 from textwrap import dedent
 
@@ -47,26 +48,17 @@ def parse_boxed_answer(response: str) -> str:
     return answer.lstrip(":").rstrip("./")
 
 
-def normalize_numeric(value: str) -> str | None:
-    """Normalize numeric string (e.g., '5.0' -> '5')."""
-    if not value:
-        return None
-    try:
-        num = float(value)
-        return str(int(num)) if num == int(num) else str(num)
-    except ValueError:
-        return None
-
-
 @scorer(metrics=[accuracy(), stderr()])
 def telemath_scorer():
     async def score(state: TaskState, target: Target) -> Score:
         parsed = parse_boxed_answer(state.output.completion)
-        pred_norm = normalize_numeric(parsed)
-        target_norm = normalize_numeric(target.text)
-        is_correct = parsed == target.text or (
-            pred_norm is not None and pred_norm == target_norm
-        )
+        try:
+            is_correct = math.isclose(
+                float(parsed), float(target.text), rel_tol=0.01, abs_tol=0.01
+            )
+        except (ValueError, TypeError):
+            is_correct = parsed == target.text
+
         return Score(
             value=CORRECT if is_correct else INCORRECT,
             answer=parsed,
