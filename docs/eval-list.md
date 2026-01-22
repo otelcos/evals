@@ -7,6 +7,7 @@ This page lists all available benchmarks in Open Telco. Each benchmark tests dif
 | Benchmark | Category | Difficulty | Best For |
 |-----------|----------|------------|----------|
 | [TeleQnA](#teleqna) | Knowledge | Easy | First evaluation, baseline testing |
+| [TeleTables](#teletables) | Knowledge | Medium | Table interpretation tasks |
 | [TeleMath](#telemath) | Math Reasoning | Hard | Mathematical/analytical tasks |
 | [TeleLogs](#telelogs) | Operations | Medium | Network diagnostics use cases |
 | [3GPP TSG](#3gpp-tsg) | Standards | Medium | Standards document work |
@@ -29,6 +30,18 @@ uv run inspect eval src/evals/teleqna/teleqna.py --model <model>
 ```
 
 [Paper](https://arxiv.org/abs/2310.15051) | [Dataset](https://huggingface.co/datasets/netop/TeleQnA)
+
+### TeleTables
+
+**[TeleTables](../src/evals/teletables/)**: Evaluating LLM Interpretation of Tables in 3GPP Specifications
+
+A curated set of 100 of the hardest questions from the TeleTables dataset, testing LLM ability to interpret technical tables from 3GPP standards covering signal processing, channel configurations, power parameters, and modulation schemes.
+
+```bash
+uv run inspect eval src/evals/teletables/teletables.py --model <model>
+```
+
+[Paper](https://arxiv.org/abs/2601.04202) | [Dataset](https://huggingface.co/datasets/netop/TeleTables)
 
 ## Mathematical Reasoning
 

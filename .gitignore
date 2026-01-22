@@ -212,3 +212,6 @@ website/scraped-styles/
 website/scripts/
 CLAUDE.md
 .DS_Store
+
+# Inspect AI logs
+logs/
