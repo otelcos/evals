@@ -11,7 +11,7 @@ DEFAULT_SPLIT = "test"
 
 
 def record_to_sample(record: dict) -> Sample:
-    """Convert dataset record to Sample for multiple choice evaluation."""
+    """Convert dataset into MCQ format."""
     # Create stable ID from table_id and question hash
     question_hash = hashlib.md5(record["question"].encode()).hexdigest()[:6]
     sample_id = f"{record['table_id']}_{question_hash}"
