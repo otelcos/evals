@@ -8,6 +8,7 @@ __all__ = [
     "telelogs",
     "telemath",
     "teleqna",
+    "teletables",
     "three_gpp",
 ]
 
