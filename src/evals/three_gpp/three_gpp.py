@@ -5,7 +5,7 @@ from inspect_ai.solver import generate
 
 from evals._utils import resolve_dataset
 
-DEFAULT_DATASET = "GSMA/open_telco"
+DEFAULT_DATASET = "GSMA/ot_sample_data"
 DEFAULT_DATASET_NAME = "3gpp_tsg"
 DEFAULT_SPLIT = "test"
 

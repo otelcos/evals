@@ -17,7 +17,7 @@ from inspect_ai.solver import TaskState, generate, system_message
 
 from evals._utils import resolve_dataset
 
-DEFAULT_DATASET = "GSMA/open_telco"
+DEFAULT_DATASET = "GSMA/ot_sample_data"
 DEFAULT_DATASET_NAME = "telemath"
 DEFAULT_SPLIT = "test"
 

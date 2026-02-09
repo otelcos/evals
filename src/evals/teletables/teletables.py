@@ -7,7 +7,7 @@ from inspect_ai.solver import multiple_choice
 
 from evals._utils import resolve_dataset
 
-DEFAULT_DATASET = "GSMA/open_telco"
+DEFAULT_DATASET = "GSMA/ot_sample_data"
 DEFAULT_DATASET_NAME = "teletables"
 DEFAULT_SPLIT = "test"
 

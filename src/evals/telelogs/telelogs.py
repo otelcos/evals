@@ -18,7 +18,7 @@ from evals._utils import resolve_dataset
 from evals.telelogs.utils import maj_at_k
 
 DEFAULT_EVAL_TYPE: Literal["soft", "hard"] = "soft"
-DEFAULT_DATASET = "GSMA/open_telco"
+DEFAULT_DATASET = "GSMA/ot_sample_data"
 DEFAULT_DATASET_NAME = "telelogs"
 DEFAULT_SPLIT = "test"
 
