@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import re
 import sys
 
 from datasets import Dataset, load_dataset
@@ -22,51 +21,6 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger(__name__)
 
 TARGET_REPO = "GSMA/ot-full-benchmarks"
-OPTION_COUNT = 4
-
-
-# ── TeleQnA transformation ─────────────────────────────────────────────────
-
-
-def _parse_answer_index(answer_str: str) -> int:
-    """Extract 0-indexed answer from 'option N: ...' string.
-
-    >>> _parse_answer_index("option 3: Some text here")
-    2
-    >>> _parse_answer_index("option 1: First")
-    0
-    """
-    m = re.match(r"option\s+(\d+)", answer_str, re.IGNORECASE)
-    if not m:
-        msg = f"Cannot parse answer index from: {answer_str!r}"
-        raise ValueError(msg)
-    return int(m.group(1)) - 1
-
-
-def transform_teleqna(ds: Dataset) -> Dataset:
-    """Convert netop/TeleQnA wide-format to choices-list format."""
-    questions: list[str] = []
-    choices_col: list[list[str]] = []
-    answers: list[int] = []
-    subjects: list[str] = []
-
-    for row in ds:
-        opts = [row[f"option {i}"] for i in range(1, OPTION_COUNT + 1)]
-        answer_idx = _parse_answer_index(row["answer"])
-
-        questions.append(row["question"])
-        choices_col.append(opts)
-        answers.append(answer_idx)
-        subjects.append(row.get("category", ""))
-
-    return Dataset.from_dict(
-        {
-            "question": questions,
-            "choices": choices_col,
-            "answer": answers,
-            "subject": subjects,
-        }
-    )
 
 
 # ── TeleLogs handling ───────────────────────────────────────────────────────
@@ -137,8 +91,13 @@ def build_all() -> dict[str, Dataset]:
     configs["teletables"] = load_dataset("netop/TeleTables", split="test")
 
     log.info("Loading teleqna from netop/TeleQnA...")
-    raw_teleqna = load_dataset("netop/TeleQnA", split="test")
-    configs["teleqna"] = transform_teleqna(raw_teleqna)
+    teleqna_ds = load_dataset("netop/TeleQnA", split="test")
+    # Keep only the columns the eval code needs (drop 'explaination')
+    keep_cols = {"question", "choices", "answer", "subject"}
+    drop_cols = [c for c in teleqna_ds.column_names if c not in keep_cols]
+    if drop_cols:
+        teleqna_ds = teleqna_ds.remove_columns(drop_cols)
+    configs["teleqna"] = teleqna_ds
 
     log.info("Loading telemath from netop/TeleMath...")
     configs["telemath"] = load_dataset("netop/TeleMath", split="test")
