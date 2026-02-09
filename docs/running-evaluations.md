@@ -81,7 +81,7 @@ uv run inspect eval-set src/evals/teleqna/teleqna.py src/evals/telemath/telemath
 | TeleQnA | 1,000 | ~10,000 |
 | TeleTables | 100 | ~500 |
 | TeleMath | 100 | ~500 |
-| TeleLogs | 100 | TBD |
+| TeleLogs | 100 | 500 |
 | 3GPP TSG | 100 | 100 |
 
 ---
