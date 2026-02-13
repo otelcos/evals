@@ -41,6 +41,8 @@ uv run inspect eval src/evals/teleqna/teleqna.py --model openai/gpt-4o --limit 5
 | **TeleMath** | Mathematical reasoning in telecom | Signal processing, network optimization |
 | **TeleLogs** | Root cause analysis | Network operations, diagnostics |
 | **3GPP TSG** | Standards document understanding | Technical specification work |
+| **ORANBench** | O-RAN specifications knowledge | O-RAN architecture, interfaces, protocols |
+| **srsRANBench** | srsRAN codebase understanding | Open-source 5G RAN code comprehension |
 | **TeleYAML** | Configuration generation | Network automation tasks |
 
 ### How do I interpret results?
@@ -61,6 +63,8 @@ Scores vary by benchmark complexity:
 | TeleLogs | 30-60% | Requires reasoning about network state |
 | TeleMath | 20-50% | Complex multi-step calculations |
 | 3GPP TSG | 50-80% | Document classification |
+| ORANBench | 40-70% | Multiple choice, O-RAN domain |
+| srsRANBench | 30-60% | Multiple choice, code understanding |
 
 ## Running Evaluations
 
@@ -73,6 +77,8 @@ Depends on the benchmark, model, and sample count:
 | TeleQnA | ~2-5 min | ~30-60 min |
 | TeleLogs | ~5-10 min | ~1-2 hours |
 | TeleMath | ~10-20 min | ~2-4 hours |
+| ORANBench | ~2-5 min | ~20-40 min |
+| srsRANBench | ~2-5 min | ~20-40 min |
 
 Use `--limit N` to run fewer samples for testing.
 

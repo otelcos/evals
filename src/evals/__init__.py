@@ -5,6 +5,8 @@ Use: from evals.telelogs import telelogs
 """
 
 __all__ = [
+    "oranbench",
+    "srsranbench",
     "telelogs",
     "telemath",
     "teleqna",

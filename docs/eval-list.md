@@ -11,6 +11,8 @@ This page lists all available benchmarks in Open Telco. Each benchmark tests dif
 | [TeleMath](#telemath) | Math Reasoning | Hard | Mathematical/analytical tasks |
 | [TeleLogs](#telelogs) | Operations | Medium | Network diagnostics use cases |
 | [3GPP TSG](#3gpp-tsg) | Standards | Medium | Standards document work |
+| [ORANBench](#oranbench) | Standards | Medium | O-RAN architecture and specs |
+| [srsRANBench](#srsranbench) | Code Understanding | Medium | srsRAN codebase comprehension |
 | TeleYAML | Configuration | Hard | Network automation (coming soon) |
 
 **Recommended starting point**: TeleQnA - fastest to run and provides good baseline metrics.
@@ -92,3 +94,30 @@ uv run inspect eval src/evals/three_gpp/three_gpp.py --model <model>
 ```
 
 [Dataset](https://huggingface.co/datasets/eaguaida/gsma_sample)
+
+### ORANBench
+
+**[ORANBench](../src/evals/oranbench/)**: Assessing LLM Understanding of Open Radio Access Networks
+
+1,500 multiple-choice questions derived from 116 O-RAN Alliance specification documents, stratified across 3 difficulty levels (500 easy, 500 medium, 500 hard). A curated subset of the ORAN-Bench-13K dataset covering O-RAN architecture components (O-RU, O-DU, O-CU, RIC), fronthaul interfaces, E2 node configurations, and management/orchestration.
+
+```bash
+uv run inspect eval src/evals/oranbench/oranbench.py --model <model>
+
+# Filter by difficulty
+uv run inspect eval src/evals/oranbench/oranbench.py --model <model> -T difficulty=hard
+```
+
+[Paper](https://arxiv.org/abs/2407.06245) | [Dataset](https://huggingface.co/datasets/prnshv/ORANBench)
+
+### srsRANBench
+
+**[srsRANBench](../src/evals/srsranbench/)**: Assessing LLM Understanding of the srsRAN 5G Codebase
+
+1,502 multiple-choice questions testing LLM comprehension of the srsRAN Project — an open-source 5G RAN implementation in C++. Questions cover classes, functions, libraries, configurations, and 3GPP specification details as implemented in srsRAN.
+
+```bash
+uv run inspect eval src/evals/srsranbench/srsranbench.py --model <model>
+```
+
+[Paper](https://arxiv.org/abs/2407.06245) | [Dataset](https://huggingface.co/datasets/prnshv/srsRANBench)

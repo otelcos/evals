@@ -41,7 +41,7 @@ uv run inspect view
 
 ## Full Benchmarks
 
-By default, evaluations run on **small samples** from `GSMA/ot_sample_data` (100 samples each, 1000 for TeleQnA). To run on the **full benchmark datasets** from `GSMA/ot-full-benchmarks`, use the `full` parameter.
+By default, evaluations run on **small samples** from `GSMA/ot_sample_data` (100–150 samples each, 1,000 for TeleQnA). To run on the **full benchmark datasets** from `GSMA/ot-full-benchmarks`, use the `full` parameter.
 
 ### Single Evaluation
 
@@ -78,11 +78,13 @@ uv run inspect eval-set src/evals/teleqna/teleqna.py src/evals/telemath/telemath
 
 | Dataset | Small samples | Full samples |
 |---------|--------------|--------------|
-| TeleQnA | 1,000 | ~10,000 |
-| TeleTables | 100 | ~500 |
-| TeleMath | 100 | ~500 |
+| TeleQnA | 1,000 | 10,000 |
+| TeleTables | 100 | 500 |
+| TeleMath | 100 | 500 |
 | TeleLogs | 100 | 500 |
 | 3GPP TSG | 100 | 2,000 |
+| ORANBench | 150 | 1,500 |
+| srsRANBench | 150 | 1,502 |
 
 ---
 
@@ -110,7 +112,9 @@ success, logs = eval_set(
       "telelogs/telelogs.py",
       "three_gpp/three_gpp.py",
       "teleqna/teleqna.py",
-      "telemath/telemath.py"
+      "telemath/telemath.py",
+      "oranbench/oranbench.py",
+      "srsranbench/srsranbench.py"
    ],
    model=[
       "openai/gpt-4o",

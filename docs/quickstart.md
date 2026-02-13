@@ -72,6 +72,12 @@ uv run inspect eval src/evals/telelogs/telelogs.py --model openai/gpt-4o --limit
 
 # Standards classification
 uv run inspect eval src/evals/three_gpp/three_gpp.py --model openai/gpt-4o --limit 10
+
+# O-RAN specifications knowledge
+uv run inspect eval src/evals/oranbench/oranbench.py --model openai/gpt-4o --limit 10
+
+# srsRAN codebase understanding
+uv run inspect eval src/evals/srsranbench/srsranbench.py --model openai/gpt-4o --limit 10
 ```
 
 ## Try Different Models
