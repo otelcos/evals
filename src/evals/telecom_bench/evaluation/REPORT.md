@@ -54,15 +54,15 @@ Total: 216 example samples across 13 tasks.
 
 - All 13 tasks are discoverable via `inspect list tasks`.
 - All datasets load with the exact expected sample counts (table above).
-- 115 unit tests pass (`uv run pytest src/tests/telecom_bench`), including a golden-record (scores
+- 119 unit tests pass (`uv run pytest src/tests/telecom_bench`), including a golden-record (scores
   correct) and known-wrong (scores 0) test per set. ruff and mypy are clean across the package.
 - Every task executes end-to-end under `mockllm/model` (`--limit 1`).
 
 ## Results (n = full example subset per set)
 
-Pending. The requested model run (`openrouter/deepseek/deepseek-v4-flash`) is blocked: the
-`OPENROUTER_API_KEY` in `.env` returns `401 "User not found"` (revoked/expired). Once a valid
-OpenRouter key is in place, reproduce with:
+Run on 2026-06-09 with `openrouter/deepseek/deepseek-v4-flash` (single turn, `generate()`,
+`--max-connections 8`). Judge-panel sets used the default panel (three calls to the same model).
+Reproduce with:
 
 ```bash
 for t in $(uv run inspect list tasks 2>/dev/null | grep -o 'telecom_bench_[a-z0-9_]*' | sort -u); do
@@ -70,18 +70,27 @@ for t in $(uv run inspect list tasks 2>/dev/null | grep -o 'telecom_bench_[a-z0-
 done
 ```
 
-| set | deepseek-v4-flash |
-|---|---|
-| intent_recognition | _pending_ |
-| entity_extraction | _pending_ |
-| event_verification | _pending_ |
-| root_cause_diagnosis | _pending_ |
-| tool_invocation | _pending_ |
-| solution_generation | _pending_ |
-| solution_generation_judged | _pending_ |
-| basic_knowledge | _pending_ |
-| network_5g | _pending_ |
-| protocols_3gpp | _pending_ |
-| wireless_network | _pending_ |
-| wired_network | _pending_ |
-| core_network | _pending_ |
+| set | n | scorer | headline | secondary |
+|---|---:|---|---:|---|
+| intent_recognition | 10 | structured_em(exact) | acc 0.800 | stderr 0.133 |
+| entity_extraction | 10 | structured_em(json) | acc 0.000 | stderr 0.000 |
+| event_verification | 1 | judge_panel | mean 1.000 | likert 5.00 |
+| root_cause_diagnosis | 1 | structured_em(json) | acc 0.000 | stderr 0.000 |
+| tool_invocation | 1 | structured_em(exact, boxed) | acc 0.000 | stderr 0.000 |
+| solution_generation | 5 | structured_em(exact) | acc 0.400 | stderr 0.245 |
+| solution_generation_judged | 5 | judge_panel | mean 0.733 | likert 3.93 |
+| basic_knowledge | 23 | multiselect_f1 | acc 0.348 | macro_f1 0.577 |
+| network_5g | 23 | multiselect_f1 | acc 0.217 | macro_f1 0.411 |
+| protocols_3gpp | 36 | multiselect_f1 | acc 0.556 | macro_f1 0.796 |
+| wireless_network | 66 | multiselect_f1 | acc 0.076 | macro_f1 0.283 |
+| wired_network | 30 | multiselect_f1 | acc 0.000 | macro_f1 0.324 |
+| core_network | 10 | judge_panel | mean 0.642 | likert 3.57 |
+
+Notes:
+- Judge-panel headline is the normalized `(mean_likert-1)/4`; the raw 1-5 mean is the `likert` column.
+- The strict exact-match sets (entity_extraction, root_cause_diagnosis, tool_invocation, wired_network)
+  score 0 exact-set, while the multiselect sets still earn partial macro-F1 (e.g. wired_network
+  macro_f1 0.324 with 0 exact-set), confirming the scorer credits partial overlap. Three Application
+  sets have n=1, so a single miss yields 0.000; absolute zeros on this small Chinese example subset
+  reflect a weak/strict pairing, not scorer bugs (each scorer is covered by golden + known-wrong
+  unit tests).
