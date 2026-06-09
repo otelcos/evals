@@ -1,0 +1,24 @@
+{
+    "nodes": [
+        {
+            "label": "TargetAlarm",
+            "properties": {
+                "alarmCode": "198097605",
+                "alarmtitle": "RRU链路断",
+                "_id": "1662777542407"
+            },
+            "@rid": "Fault_1"
+        },
+        {
+            "label": "RootCause",
+            "properties": {
+                "causeId": "00000638",
+                "causeName": "光纤链路异常",
+                "alarmCode": "198097605",
+                "alarmtitle": "RRU链路断",
+                "_id": "1662777542407"
+            },
+            "@rid": "RootCause_00000638_Fault_1"
+        }
+    ]
+}

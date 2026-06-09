@@ -1,0 +1,235 @@
+{
+  "total_sampled": 23,
+  "questions": [
+    {
+      "id": 0,
+      "source_file": "5G基础_判断题",
+      "question": "多模光纤的传输距离长于单模光纤",
+      "A": "正确",
+      "B": "错误",
+      "C": "None",
+      "D": "None",
+      "answer": "F"
+    },
+    {
+      "id": 1,
+      "source_file": "5G基础_单选题",
+      "question": "NR系统中，一个SS/PBCH block包含（ ）个OFDM symbols。",
+      "A": "4",
+      "B": "1",
+      "C": "3",
+      "D": "2",
+      "answer": "A"
+    },
+    {
+      "id": 2,
+      "source_file": "5G基础_单选题",
+      "question": "目前低频5G带宽是（）MHz",
+      "A": "100",
+      "B": "20",
+      "C": "50",
+      "D": "200",
+      "answer": "A"
+    },
+    {
+      "id": 3,
+      "source_file": "5G基础_多选题",
+      "question": "关于精简置备说法正确的是",
+      "A": "A.精简置备在创建磁盘时，占用磁盘的空间大小根据实际使用量计算",
+      "B": "B.用多少分多少，提前不分配空间",
+      "C": "C.对磁盘保留数据不置零",
+      "D": "D.最大不超过划分磁盘的大小",
+      "answer": "ABCD"
+    },
+    {
+      "id": 4,
+      "source_file": "5G基础_多选题",
+      "question": "路测道路某点存在越区覆盖，越区站点存在物业纠纷，如何能尽快规避此问题（）",
+      "A": "对越区小区进行天馈调整，控制覆盖",
+      "B": "对越区小区进行整改，降低天线挂高；",
+      "C": "降低问题小区的功率；",
+      "D": "优化邻区关系，保证切换顺畅；",
+      "answer": "CD"
+    },
+    {
+      "id": 5,
+      "source_file": "5G无线接入网_判断题",
+      "question": "NR网络中用CQI反应信道的质量情况，UE上报给gNB的CQI是通过UE测量导频SINR后量化得到的。",
+      "A": "正确",
+      "B": "错误",
+      "C": "None",
+      "D": "None",
+      "answer": "T"
+    },
+    {
+      "id": 6,
+      "source_file": "5G无线接入网_判断题",
+      "question": "NSA架构下的UE附着网络时，可以直接 Attach到NR网络上。",
+      "A": "正确",
+      "B": "错误",
+      "C": "None",
+      "D": "None",
+      "answer": "F"
+    },
+    {
+      "id": 7,
+      "source_file": "5G无线接入网_单选题",
+      "question": "UE从Inactive状态到Connected状态要发起下列哪一条RRC消息？",
+      "A": "RRC restablishment",
+      "B": "RRC Connection Request",
+      "C": "RRC Resume Request",
+      "D": "RRC Setup Request",
+      "answer": "C"
+    },
+    {
+      "id": 8,
+      "source_file": "5G无线接入网_单选题",
+      "question": "在下行调度计算用户的RB数量时，以下哪个因素是不涉及的？",
+      "A": "RI上报",
+      "B": "MCS",
+      "C": "缓存数据量",
+      "D": "PMI上报",
+      "answer": "D"
+    },
+    {
+      "id": 9,
+      "source_file": "5G无线接入网_单选题",
+      "question": "目前700M可用于5G的带宽为：",
+      "A": "20MHz",
+      "B": "30MHz",
+      "C": "40MHz",
+      "D": "60MHz",
+      "answer": "B"
+    },
+    {
+      "id": 10,
+      "source_file": "5G无线接入网_多选题",
+      "question": "以下哪些场景属于NR基于竞争的随机接入？",
+      "A": "初始RRC连接建立",
+      "B": "RRC连接重建",
+      "C": "上行数据到达",
+      "D": "波束恢复",
+      "answer": "ABC"
+    },
+    {
+      "id": 11,
+      "source_file": "5G无线接入网_多选题",
+      "question": "5G的注册类型有",
+      "A": "初始注册",
+      "B": "紧急注册",
+      "C": "移动性注册",
+      "D": "周期性注册",
+      "answer": "ABCD"
+    },
+    {
+      "id": 12,
+      "source_file": "5G无线接入网_多选题",
+      "question": "CCE到REG使用交织映射时，单个符号的PDCCH的REG Bundle大小可以的取值为：",
+      "A": "1",
+      "B": "2",
+      "C": "3",
+      "D": "6",
+      "answer": "BD"
+    },
+    {
+      "id": 13,
+      "source_file": "5G核心网_判断题",
+      "question": "5G不支持VoNR时需要通过EPS Fallback流程回落到4G进行语音业务，MME和AMF间无论有无N26接口均可以提供EPS Fallback业务",
+      "A": "正确",
+      "B": "错误",
+      "C": "None",
+      "D": "None",
+      "answer": "T"
+    },
+    {
+      "id": 14,
+      "source_file": "5G核心网_判断题",
+      "question": "NEF与AF间的N33接口是服务化接口",
+      "A": "正确",
+      "B": "错误",
+      "C": "None",
+      "D": "None",
+      "answer": "T"
+    },
+    {
+      "id": 15,
+      "source_file": "5G核心网_单选题",
+      "question": "下面哪个4G概念在5G中不存在？（概念的名字不需要相同）",
+      "A": "APN",
+      "B": "EPS bear",
+      "C": "UE AMBR",
+      "D": "GBR",
+      "answer": "B"
+    },
+    {
+      "id": 16,
+      "source_file": "5G核心网_单选题",
+      "question": "下列那个网络功能负责网络切片的选择",
+      "A": "AMF",
+      "B": "NRF",
+      "C": "NSSF",
+      "D": "SMF",
+      "answer": "C"
+    },
+    {
+      "id": 17,
+      "source_file": "5G核心网_单选题",
+      "question": "以下关于5G QFI，说法错误的是？",
+      "A": "用于在5G系统中标识一个PDU Session",
+      "B": "在PDU会话中具有相同QFI的业务流接受相同的业务转发处理",
+      "C": "QFI在每个PDU会话中唯一",
+      "D": "QFI被封装在N3和N9的协议报头中",
+      "answer": "A"
+    },
+    {
+      "id": 18,
+      "source_file": "5G核心网_多选题",
+      "question": "NR终端在RRC_IDLE状态下，可以进行的操作有（      ）",
+      "A": "PLMN 选择",
+      "B": "监听系统消息",
+      "C": "重选",
+      "D": "切换",
+      "answer": "ABC"
+    },
+    {
+      "id": 19,
+      "source_file": "5G核心网_多选题",
+      "question": "（）属于5GC的基本功能模块",
+      "A": "AMF",
+      "B": "SMF",
+      "C": "UPF",
+      "D": "RFS",
+      "answer": "ABC"
+    },
+    {
+      "id": 20,
+      "source_file": "安全与规范_判断题",
+      "question": "如果司机开车很慢，不需要系紧安全带",
+      "A": "正确",
+      "B": "错误",
+      "C": "None",
+      "D": "None",
+      "answer": "F"
+    },
+    {
+      "id": 21,
+      "source_file": "安全与规范_单选题",
+      "question": "关于口令安全说法不正确的是：",
+      "A": "口令是抵御网络攻击的最后一道防线",
+      "B": "针对口令的攻击简便易行，口令破解快速有效",
+      "C": "用户名+口令是最简单也最常用的身份认证方式",
+      "D": "口令是最保险的安全环节",
+      "answer": "D"
+    },
+    {
+      "id": 22,
+      "source_file": "安全与规范_多选题",
+      "question": "日志具有什么特征？",
+      "A": "多用可读",
+      "B": "可以查看用户的登录情况",
+      "C": "可以检查软件运行情况",
+      "D": "是系统生成的记录文件",
+      "answer": "ABCD"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ __all__ = [
     "oranbench",
     "sixg_bench",
     "srsranbench",
+    "telecom_bench",
     "telelogs",
     "telemath",
     "teleqna",

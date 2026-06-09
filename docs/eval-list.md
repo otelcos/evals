@@ -14,6 +14,7 @@ This page lists all available benchmarks in Open Telco. Each benchmark tests dif
 | [3GPP TSG](#3gpp-tsg) | Standards | Medium | Standards document work |
 | [ORANBench](#oranbench) | Standards | Medium | O-RAN architecture and specs |
 | [srsRANBench](#srsranbench) | Code Understanding | Medium | srsRAN codebase comprehension |
+| [TeleCom-Bench](#telecom-bench) | Knowledge (zh) | Hard | Chinese telecom application + comprehension |
 | TeleYAML | Configuration | Hard | Network automation (coming soon) |
 
 **Recommended starting point**: TeleQnA - fastest to run and provides good baseline metrics.
@@ -45,6 +46,18 @@ uv run inspect eval src/evals/teletables/teletables.py --model <model>
 ```
 
 [Paper](https://arxiv.org/abs/2601.04202) | [Dataset](https://huggingface.co/datasets/netop/TeleTables)
+
+### TeleCom-Bench
+
+**[TeleCom-Bench](../src/evals/telecom_bench/)**: A Chinese-language telecom domain benchmark from ZTE
+
+A native Inspect AI port of ZTE TeleCom-Bench: 12 evaluation sets (13 tasks) across Knowledge Application (intent recognition, entity extraction, event verification, root cause diagnosis, tool invocation, solution generation) and Knowledge Comprehension (basic knowledge, 5G network, 3GPP protocols, wireless network, wired network, core network). Scored offline with ports of ZTE's own postprocessors and evaluators: exact-set/Macro-F1 for MCQ, JSON exact match for structured outputs, and a configurable tri-expert 5-point Likert judge panel for subjective answers. See `src/evals/telecom_bench/evaluation/` for the report and fidelity notes.
+
+```bash
+uv run inspect eval evals/telecom_bench_basic_knowledge --model <model>
+```
+
+[Paper](https://arxiv.org/abs/2605.18025) | [Upstream](https://github.com/ZTE-AICloud/TeleCom-Bench)
 
 ## Mathematical Reasoning
 
