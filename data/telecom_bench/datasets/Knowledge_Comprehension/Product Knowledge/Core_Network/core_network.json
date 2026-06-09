@@ -1,0 +1,93 @@
+{
+  "total_sampled": 10,
+  "products": [
+    "CG",
+    "VNFM",
+    "xGW",
+    "CSCF",
+    "Rack_Server",
+    "Maintain_Book"
+  ],
+  "questions": [
+    {
+      "难度": "简单题",
+      "大类": "安装调试",
+      "题目": "Ga口主要和哪些网元进行对接？",
+      "答案": "SMF网元和AMF网元",
+      "product": "CG",
+      "id": 0
+    },
+    {
+      "难度": "简单题",
+      "大类": "操作维护",
+      "题目": "删除话单文件时，如果选择删除指定时间范围内备份过的文件，只输入起始时间，不输入结束时间，会删除哪些文件？",
+      "答案": "只删除起始时间及之后的所有备份过的话单文件",
+      "product": "CG",
+      "id": 1
+    },
+    {
+      "难度": "简单题",
+      "大类": "安装调试",
+      "题目": "联通5GC场景下，对于通道参数有何基本要求？",
+      "答案": "话单命名格式采用YYYYXX_*_AABBCC_YYYYMMDDHHMMSS_XXXXXXXX.dat，话单文件最大长度为15MB，话单文件定时产生间隔为900s，话单文件最大话单数量为15000个。执行SET CHNL命令修改对应参数配置。",
+      "product": "CG",
+      "id": 2
+    },
+    {
+      "难度": "简单题",
+      "大类": "特性指导",
+      "题目": "VNFM支持的虚机管理操作有哪些？",
+      "答案": "VNFM的虚机管理包括VM的创建、删除、停止、启用、迁移，VNFM的虚机管理功能还支持NFVO发起的对虚机的所有操作，包括：创建虚机、删除虚机、启用/停止虚机、重启虚机、冷迁移/热迁移虚机、ScaleUp虚机、ScaleDown虚机、增删虚机端口。",
+      "product": "VNFM",
+      "id": 3
+    },
+    {
+      "难度": "易:可从文中直接找到答案",
+      "大类": "安装调试",
+      "题目": "VNFM双机安装需要规划那些网络，以及这些网络的作用？",
+      "答案": "1、VNFM-EMS-NET：用于VNFM服务器和VNFM客户端进行通信的网络平面。该网络平面需要接入运营商的维护网络，其中使用的IP地址需要事先由运营商规划。\n2、VNFM-CMS-NET：用于VNFM与NFVO进行通信的网络平面，也用于VNFM与VIM进行通信。\n3、VNFM-VNF-NET：用于VNFM和VNF进行通信的网络平面。\n4、VNFM-HB1-NET：用于VNFM服务器双机主用心跳线通信的网络平面。\n5、VNFM-HB2-NET：用于VNFM服务器双机备用心跳线通信的网络平面。",
+      "product": "VNFM",
+      "id": 4
+    },
+    {
+      "难度": "中：需要根据文档中上下文推理",
+      "大类": "安装调试",
+      "题目": "SMF如何新增APN/DNN？",
+      "答案": "1、执行ADD APNDNN命令，配置APN/DNN。\n2、执行ADD UGROUPDNN命令，配置UPF组和APN/DNN的关联关系。\n3、执行ADD NETWORKINSTANCE命令，配置网络实例。\n4、执行ADD IPPOOL命令，配置IP地址池。\n5、执行ADD IPSEGINFO命令，配置IPv4地址段，并将地址段与网络实例、UP和地址池关联。\n6、执行ADD IPV6SEGINFO命令，配置IPv6地址段，并将地址段与网络实例、UP和地址池关联。\n7、执行ADD IPPOOLAPNDNNINFO命令，配置地址池与APN/DNN的关联关系。\n8、执行ADD APNDNNPROFILE命令，配置APN/DNN Profile。\n9、执行ADD MAPAPNDNNPROFILE命令，配置APN/DNN与APN/DNN Profile的关联关系。\n10、执行ADD INTERWORKING命令，开启针对特定APN/DNN的互操作开关。\n11、执行ADD CHARGELOCALCC命令，配置本地计费特性（CC）配置。\n12、执行SET LOCALCC命令，配置APN/DNN与本地计费特性（CC）的关联关系。\n13、执行ADD PCCFUNCPROFILE命令，配置PCC功能模板。\n14、执行ADD PCCRULEPROFILE命令，配置PCC规则模板。\n15、（可选）执行ADD PCCACCESSMAP命令，配置PCC接入控制。\n16、执行ADD DNNPCCPROFILE命令，配置APN/DNN与PCC模板的关联关系。\n17、执行ADD ACCDNNTEMPLATE命令，添加关联计费模板。\n18、执行ADD NSAPNDNN命令，配置APN/DNN和切片的关联关系。\n19、执行ADD PCFDYNAMICPROFILE命令，新增PCF动态模板配置。\n20、执行ADD ACCDNNTEMPLATE命令，配置APN/DNN与PGW-C计费模板的关联关系。\n其中离线计费模板标识需要预先通过ADD OFFLINETEMPLATE命令进行配置。\n21、CDNNTEMPLATE命令，配置APN/DNN与SGW-C计费模板的关联关系。\n其中SGW离线计费模板标识需要预先通过ADD SGWOFFLINETEMPLATE命令进行配置。\n22、执行ADD CONVERGEFUNCTION命令，将过滤所有话单参数设置为“关闭”，表示开启5G计费开关。",
+      "product": "xGW",
+      "id": 5
+    },
+    {
+      "难度": "中：需要根据文档中上下文推理",
+      "大类": "综合方案",
+      "题目": "要实现ULCL，分别需要SMF和UPF实现什么功能？",
+      "答案": "1、判断启动分流：用户只有进入到一定的区域范围内访问区域内的数据时才可能触发ULCL分流，且用户需要签约获取访问区域内业务的权限。\n因此网络侧需要基于用户当前所处位置以及用户通过ULCL分流方式访问园区内业务的签约情况来判断是否需要分流。当网络侧判定用户需要通过ULCL分流方式访问区域内业务时，需要选择一个ULCL UPF和辅锚点UPF承接分流业务。\n2、创建分流会话：修改/创建用户会话，最终创建UE-(R)AN-ULCL UPF-主锚点UPF-Internet和UE-(R)AN-ULCL UPF-辅锚点UPF-本地DN的数据通路。\n3、下发分流策略：分流会话创建过程中，控制面网元PCF、SMF将分流策略下发给ULCL UPF，其他策略（如计费相关的PCC规则）下发给辅锚点UPF。\n4、执行分流策略：ULCL UPF收到控制面下发的分流策略后会执行策略安装，在收到用户数据包以后根据数据包的特征对用户数据进行分流，如根据数据包携带的IP地址头或DNS域名头将用户数据分流到本地DN或Internet。\n5、分流场景下的计费：分流场景下，辅锚点UPF和主锚点UPF均承担了终结用户数据流的角色，因此辅锚点也需要执行SMF下发的计费相关策略，对分流到园区内的数据流进行计费，ULCL UPF只负责分流数据，不负责计费。\n6、业务分流过程：分流会话创建完成后，用户进行不同的数据业务，数据包的目的地可能是Internet也可能是本地DN。业务报文基于IP地址或域名匹配DPI规则后，被发送至相应的目的地。",
+      "product": "xGW",
+      "id": 6
+    },
+    {
+      "难度": "易:可从文中直接找到答案",
+      "大类": "日常维护",
+      "题目": "GBA网元OMM客户端可以创建多少个跟踪任务？",
+      "答案": "一个OMM客户端最多支持8个跟踪任务。",
+      "product": "CSCF",
+      "id": 7
+    },
+    {
+      "难度": "易:可从文中直接找到答案",
+      "大类": "技术入门",
+      "题目": "R5310 G2服务器的前面板根据硬盘的配置方式可以分为几种配置，分别有几个插槽",
+      "答案": "1、硬盘横置   12个插槽\n2、硬盘纵置   24个插槽",
+      "product": "Rack_Server",
+      "id": 8
+    },
+    {
+      "难度": "易:可从文中直接找到答案",
+      "大类": "技术入门",
+      "题目": "获取产品系列号的方法有哪些",
+      "答案": "l、通过铭牌查看产品型号\n2、通过BMC查看产品序列号",
+      "product": "Maintain_Book",
+      "id": 9
+    }
+  ]
+}

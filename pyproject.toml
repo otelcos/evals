@@ -13,7 +13,7 @@ include = ["evals*"]
 "evals" = ["*.yaml", "*.json"]
 
 [tool.ruff]
-extend-exclude = ["docs"]
+extend-exclude = ["docs", "data/telecom_bench/upstream_ref"]
 src = ["src"]
 target-version = "py310"
 

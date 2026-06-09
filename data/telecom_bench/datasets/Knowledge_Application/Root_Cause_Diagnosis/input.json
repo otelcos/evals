@@ -1,0 +1,200 @@
+{
+    "nodes": [
+        {
+            "@rid": "RootCause_00000079_Fault_1",
+            "ldn": "00000079",
+            "title": "风扇故障",
+            "@class": "RootCause"
+        },
+        {
+            "@rid": "RootCause_00000896_Fault_1",
+            "ldn": "00000896",
+            "title": "链路收光异常",
+            "@class": "RootCause"
+        },
+        {
+            "@rid": "RootCause_00000893_Fault_1",
+            "ldn": "00000893",
+            "title": "光纤链路异常",
+            "@class": "RootCause"
+        },
+        {
+            "@rid": "RootCause_00000890_Fault_1",
+            "ldn": "00000890",
+            "title": "光纤断开",
+            "@class": "RootCause"
+        },
+        {
+            "@rid": "RootCause_00000638_Fault_1",
+            "ldn": "00000638",
+            "title": "光纤链路异常",
+            "@class": "RootCause"
+        },
+        {
+            "@rid": "Fault_1",
+            "alarmCause": "",
+            "additionalText": "boardSerialNumber: 219992597578\nboardType: A9611A S26\nrruCellInfo: [{cellId:[460-00-12583652-96],product:5G}]\ntopoInfo: Equipment=1,ReplaceableUnit=VBP_1_7,OF3,NextBrdGrade=1\ncellUserLabel: 广州天河区林业学校D-ZRH-3",
+            "appendInformation": "可能原因：光纤故障，[光模块Equipment=1#ReplaceableUnit=VBP_1_7#RiPort=OF3光衰过大，光衰：18.9dB]，可能原因：光模块Equipment=1#ReplaceableUnit=VBP_1_7#RiPort=OF3故障，[非ZTE认证光模块，光模块型号：APS8C35B53IDL10，光模块厂商：SDGI，光模块序列号：STAP351B1300309]，可能原因：光模块Equipment=1#ReplaceableUnit=A_6#RiPort=OPT1故障，[非ZTE认证光模块，光模块型号：RSP-25C10-37，光模块厂商：Raisecom，光模块序列号：T71006003044]。LTE eNBId:615176,NR gNBId:12583652。Location：rack=A_6,shelf=1,board=1。",
+            "phyPosition": "ReplaceableUnit-A_3",
+            "@class": "AlarmDetail",
+            "_id": "1662777542407",
+            "code": "198097605",
+            "ldn": "ManagedElement=12583652,Equipment=1,ReplaceableUnit=A_6",
+            "time": 1755573940000,
+            "title": "RRU链路断",
+            "clearedTime": 1755577414000,
+            "label": "targetAlarm"
+        },
+        {
+            "@class": "ManagedElement",
+            "@rid": "590",
+            "ldn": "ManagedElement=12583652",
+            "type": "resource"
+        },
+        {
+            "@class": "BBU",
+            "@rid": "591",
+            "ldn": "ManagedElement=12583652,Equipment=1,SubRack=1",
+            "type": "resource"
+        },
+        {
+            "@class": "ReplaceableUnit_VBP",
+            "@rid": "603",
+            "ldn": "ManagedElement=12583652,Equipment=1,ReplaceableUnit=VBP_1_7",
+            "type": "resource"
+        },
+        {
+            "@class": "RiPort",
+            "@rid": "531",
+            "ldn": "ManagedElement=12583652,Equipment=1,ReplaceableUnit=A_6,RiPort=OPT1",
+            "type": "resource"
+        },
+        {
+            "@class": "ReplaceableUnit_AAU",
+            "@rid": "602",
+            "ldn": "ManagedElement=12583652,Equipment=1,ReplaceableUnit=A_6",
+            "type": "resource"
+        },
+        {
+            "@class": "RiCable",
+            "@rid": "551",
+            "ldn": "ManagedElement=12583652,Equipment=1,RiCable=9",
+            "type": "resource"
+        },
+        {
+            "@class": "ReplaceableUnit_VSW",
+            "@rid": "592",
+            "ldn": "ManagedElement=12583652,Equipment=1,ReplaceableUnit=VSW_1_1",
+            "type": "resource"
+        },
+        {
+            "@class": "RiPort",
+            "@rid": "538",
+            "ldn": "ManagedElement=12583652,Equipment=1,ReplaceableUnit=VBP_1_7,RiPort=OF3",
+            "type": "resource"
+        },
+        {
+            "@class": "ReplaceableUnit_VSW",
+            "@rid": "604",
+            "ldn": "ManagedElement=12583652,Equipment=1,ReplaceableUnit=VSW_1_2",
+            "type": "resource"
+        }
+    ],
+    "edges": [
+        {
+            "@rid": "generate_2",
+            "@class": "generate",
+            "out": "602",
+            "in": "Fault_1"
+        },
+        {
+            "@class": "causedBy",
+            "@rid": "causedBy_f_r_198097605_Fault_1_00000079",
+            "in": "RootCause_00000079_Fault_1",
+            "out": "Fault_1",
+            "label": "other"
+        },
+        {
+            "@class": "causedBy",
+            "@rid": "causedBy_f_r_198097605_Fault_1_00000896",
+            "in": "RootCause_00000896_Fault_1",
+            "out": "Fault_1",
+            "label": "other"
+        },
+        {
+            "@class": "causedBy",
+            "@rid": "causedBy_f_r_198097605_Fault_1_00000893",
+            "in": "RootCause_00000893_Fault_1",
+            "out": "Fault_1",
+            "label": "other"
+        },
+        {
+            "@class": "causedBy",
+            "@rid": "causedBy_f_r_198097605_Fault_1_00000890",
+            "in": "RootCause_00000890_Fault_1",
+            "out": "Fault_1",
+            "label": "other"
+        },
+        {
+            "@class": "causedBy",
+            "@rid": "causedBy_f_r_198097605_Fault_1_00000638",
+            "in": "RootCause_00000638_Fault_1",
+            "out": "Fault_1",
+            "label": "targetRootCause"
+        },
+        {
+            "@class": "resource",
+            "@rid": "737",
+            "in": "531",
+            "out": "602"
+        },
+        {
+            "@class": "resource",
+            "@rid": "1251",
+            "in": "538",
+            "out": "531"
+        },
+        {
+            "@class": "resource",
+            "@rid": "1226",
+            "in": "551",
+            "out": "531"
+        },
+        {
+            "@class": "resource",
+            "@rid": "744",
+            "in": "603",
+            "out": "538"
+        },
+        {
+            "@class": "resource",
+            "@rid": "1225",
+            "in": "551",
+            "out": "538"
+        },
+        {
+            "@class": "resource",
+            "@rid": "1207",
+            "in": "591",
+            "out": "603"
+        },
+        {
+            "@class": "resource",
+            "@rid": "748",
+            "in": "590",
+            "out": "591"
+        },
+        {
+            "@class": "resource",
+            "@rid": "1202",
+            "in": "591",
+            "out": "592"
+        },
+        {
+            "@class": "resource",
+            "@rid": "1208",
+            "in": "591",
+            "out": "604"
+        }
+    ]
+}
